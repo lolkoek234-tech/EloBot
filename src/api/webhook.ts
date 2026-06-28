@@ -2,9 +2,14 @@ import express from 'express';
 import { Client, EmbedBuilder, TextChannel } from 'discord.js';
 import { getPlayerByRobloxId, processMatch } from '../db/queries';
 import { determineWinner } from '../elo';
-import { MatchResultInput } from '../types';
+import { MatchResultInput, Region } from '../types';
 
-const MATCH_RESULT_CHANNEL_ID = process.env.MATCH_RESULT_CHANNEL_ID || '';
+const REGION_CHANNELS: Record<Region, string> = {
+  eu: process.env.CHANNEL_EU || '',
+  na: process.env.CHANNEL_NA || '',
+  asia: process.env.CHANNEL_ASIA || '',
+  global: process.env.CHANNEL_GLOBAL || '',
+};
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || '';
 
 export function startApi(client: Client, port: number): void {
@@ -19,7 +24,7 @@ export function startApi(client: Client, port: number): void {
         return;
       }
 
-      const { player1_roblox, player2_roblox, score1, score2 } = req.body as MatchResultInput;
+      const { player1_roblox, player2_roblox, score1, score2, region } = req.body as MatchResultInput;
 
       if (!player1_roblox || !player2_roblox || typeof score1 !== 'number' || typeof score2 !== 'number') {
         res.status(400).json({ error: 'Missing or invalid required fields' });
@@ -42,13 +47,14 @@ export function startApi(client: Client, port: number): void {
       const result = processMatch(player1.discord_id, player2.discord_id, player1.elo, player2.elo, score1, score2);
       const winner = determineWinner(score1, score2);
 
-      if (MATCH_RESULT_CHANNEL_ID) {
-        const channel = client.channels.cache.get(MATCH_RESULT_CHANNEL_ID);
+      const channelId = REGION_CHANNELS[region as Region] || REGION_CHANNELS.global || '';
+      if (channelId) {
+        const channel = client.channels.cache.get(channelId);
         if (channel instanceof TextChannel) {
           const resultText = winner === 'draw' ? 'Draw!' : `<@${result.winnerId}> wins!`;
           const embed = new EmbedBuilder()
             .setColor(winner === 'draw' ? 0x95A5A6 : 0x00FF00)
-            .setTitle('Match Result')
+            .setTitle(`Match Result [${(region || 'global').toUpperCase()}]`)
             .setDescription(
               `<@${player1.discord_id}> **${score1}** - **${score2}** <@${player2.discord_id}>
               ${resultText}

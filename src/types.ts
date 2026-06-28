@@ -27,9 +27,12 @@ export interface DailyStats {
   fight_count: number;
 }
 
+export type Region = 'eu' | 'na' | 'asia' | 'global';
+
 export interface MatchResultInput {
   player1_roblox: string;
   player2_roblox: string;
   score1: number;
   score2: number;
+  region?: Region;
 }
