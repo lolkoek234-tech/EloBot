@@ -30,7 +30,7 @@ export function calculateElo(ratingA: number, ratingB: number, scoreA: number, s
   }
 
   const changeA = Math.round(K_FACTOR * (actualA - expectedA));
-  const changeB = Math.round(K_FACTOR * (actualB - expectedB));
+  const changeB = -changeA || 0;
 
   return {
     newEloA: ratingA + changeA,
