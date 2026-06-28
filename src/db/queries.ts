@@ -10,6 +10,15 @@ export function getPlayerByRobloxId(robloxId: string): Player | undefined {
   return getDb().prepare('SELECT * FROM players WHERE roblox_id = ?').get(robloxId) as Player | undefined;
 }
 
+export function getOrCreatePlayerByRobloxId(robloxId: string): Player {
+  const existing = getPlayerByRobloxId(robloxId);
+  if (existing) return existing;
+
+  const syntheticId = 'rbx_' + robloxId;
+  createPlayer(syntheticId, robloxId);
+  return getPlayerByRobloxId(robloxId)!;
+}
+
 export function createPlayer(discordId: string, robloxId: string): void {
   getDb().prepare(
     'INSERT INTO players (discord_id, roblox_id) VALUES (?, ?)'

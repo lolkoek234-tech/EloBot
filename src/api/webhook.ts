@@ -1,6 +1,6 @@
 import express from 'express';
 import { Client, EmbedBuilder, TextChannel } from 'discord.js';
-import { getPlayerByRobloxId, processMatch } from '../db/queries';
+import { getOrCreatePlayerByRobloxId, processMatch } from '../db/queries';
 import { determineWinner } from '../elo';
 import { MatchResultInput, Region } from '../types';
 
@@ -36,13 +36,8 @@ export function startApi(client: Client, port: number): void {
         return;
       }
 
-      const player1 = getPlayerByRobloxId(player1_roblox);
-      const player2 = getPlayerByRobloxId(player2_roblox);
-
-      if (!player1 || !player2) {
-        res.status(404).json({ error: 'One or both players not linked' });
-        return;
-      }
+      const player1 = getOrCreatePlayerByRobloxId(player1_roblox);
+      const player2 = getOrCreatePlayerByRobloxId(player2_roblox);
 
       const result = processMatch(player1.discord_id, player2.discord_id, player1.elo, player2.elo, score1, score2);
       const winner = determineWinner(score1, score2);
@@ -51,12 +46,17 @@ export function startApi(client: Client, port: number): void {
       if (channelId) {
         const channel = client.channels.cache.get(channelId);
         if (channel instanceof TextChannel) {
-          const resultText = winner === 'draw' ? 'Draw!' : `<@${result.winnerId}> wins!`;
+          const p1Name = player1.discord_id.startsWith('rbx_') ? player1_roblox : `<@${player1.discord_id}>`;
+          const p2Name = player2.discord_id.startsWith('rbx_') ? player2_roblox : `<@${player2.discord_id}>`;
+          const winnerName = result.winnerId && result.winnerId.startsWith('rbx_')
+            ? (result.winnerId === player1.discord_id ? player1_roblox : player2_roblox)
+            : (result.winnerId ? `<@${result.winnerId}>` : '');
+          const resultText = winner === 'draw' ? 'Draw!' : `${winnerName} wins!`;
           const embed = new EmbedBuilder()
             .setColor(winner === 'draw' ? 0x95A5A6 : 0x00FF00)
             .setTitle(`Match Result [${(region || 'global').toUpperCase()}]`)
             .setDescription(
-              `<@${player1.discord_id}> **${score1}** - **${score2}** <@${player2.discord_id}>
+              `${p1Name} **${score1}** - **${score2}** ${p2Name}
               ${resultText}
               ${result.changeA > 0 ? '+' : ''}${result.changeA} Elo • ${result.changeB > 0 ? '+' : ''}${result.changeB} Elo`
             )
