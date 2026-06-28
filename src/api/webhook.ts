@@ -1,5 +1,5 @@
 import express from 'express';
-import { Client, EmbedBuilder } from 'discord.js';
+import { Client, EmbedBuilder, TextChannel } from 'discord.js';
 import { getPlayerByRobloxId, updatePlayerElo, insertMatch, incrementDailyStats } from '../db/queries';
 import { calculateElo, determineWinner } from '../elo';
 import { MatchResultInput } from '../types';
@@ -63,7 +63,7 @@ export function startApi(client: Client, port: number): void {
 
       if (MATCH_RESULT_CHANNEL_ID) {
         const channel = client.channels.cache.get(MATCH_RESULT_CHANNEL_ID);
-        if (channel && channel.isTextBased()) {
+        if (channel instanceof TextChannel) {
           const resultText = winner === 'draw' ? 'Draw!' : `<@${winnerId}> wins!`;
           const embed = new EmbedBuilder()
             .setColor(winner === 'draw' ? 0x95A5A6 : 0x00FF00)
