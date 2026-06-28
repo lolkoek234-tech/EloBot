@@ -44,8 +44,11 @@ export function startApi(client: Client, port: number): void {
 
       const channelId = REGION_CHANNELS[region as Region] || REGION_CHANNELS.global || '';
       if (channelId) {
-        const channel = client.channels.cache.get(channelId);
-        if (channel instanceof TextChannel) {
+        const guild = client.guilds.cache.get(process.env.GUILD_ID || '');
+        const channel = guild?.channels.cache.get(channelId) || await guild?.channels.fetch(channelId).catch(() => null);
+        if (!channel) {
+          console.warn(`Channel ${channelId} not found in guild`);
+        } else if (channel instanceof TextChannel) {
           const p1Name = player1.discord_id.startsWith('rbx_') ? player1_roblox : `<@${player1.discord_id}>`;
           const p2Name = player2.discord_id.startsWith('rbx_') ? player2_roblox : `<@${player2.discord_id}>`;
           const winnerName = result.winnerId && result.winnerId.startsWith('rbx_')
@@ -62,7 +65,11 @@ export function startApi(client: Client, port: number): void {
             )
             .setTimestamp();
           await channel.send({ embeds: [embed] });
+        } else {
+          console.warn(`Channel ${channelId} not found or not a text channel`);
         }
+      } else {
+        console.warn('No channel configured for region:', region);
       }
 
       res.json({
