@@ -4,13 +4,14 @@ import { getOrCreatePlayerByRobloxId, processMatch } from '../db/queries';
 import { determineWinner } from '../elo';
 import { MatchResultInput, Region } from '../types';
 
-const REGION_CHANNELS: Record<Region, string> = {
-  eu: process.env.CHANNEL_EU || '',
-  na: process.env.CHANNEL_NA || '',
-  asia: process.env.CHANNEL_ASIA || '',
-  global: process.env.CHANNEL_GLOBAL || '',
-};
-const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || '';
+function getRegionChannels(): Record<string, string> {
+  return {
+    eu: process.env.CHANNEL_EU || '',
+    na: process.env.CHANNEL_NA || '',
+    asia: process.env.CHANNEL_ASIA || '',
+    global: process.env.CHANNEL_GLOBAL || '',
+  };
+}
 
 export function startApi(client: Client, port: number): void {
   const app = express();
@@ -18,8 +19,9 @@ export function startApi(client: Client, port: number): void {
 
   app.post('/api/match-result', async (req, res) => {
     try {
+      const secret = process.env.WEBHOOK_SECRET || '';
       const auth = req.headers['authorization'];
-      if (WEBHOOK_SECRET && auth !== `Bearer ${WEBHOOK_SECRET}`) {
+      if (secret && auth !== `Bearer ${secret}`) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
       }
@@ -42,7 +44,8 @@ export function startApi(client: Client, port: number): void {
       const result = processMatch(player1.discord_id, player2.discord_id, player1.elo, player2.elo, score1, score2);
       const winner = determineWinner(score1, score2);
 
-      const channelId = REGION_CHANNELS[region as Region] || REGION_CHANNELS.global || '';
+      const channels = getRegionChannels();
+      const channelId = channels[region as Region] || channels.global || '';
       if (channelId) {
         const guild = client.guilds.cache.get(process.env.GUILD_ID || '');
         const channel = guild?.channels.cache.get(channelId) || await guild?.channels.fetch(channelId).catch(() => null);
