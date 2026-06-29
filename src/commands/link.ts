@@ -1,10 +1,10 @@
-import { SlashCommandBuilder } from 'discord.js';
-import { linkPlayer } from '../db/queries';
+import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { linkPlayer, getPlayerByRobloxId } from '../db/queries';
 
 export const linkCommand = {
   data: new SlashCommandBuilder()
     .setName('link')
-    .setDescription('Link your Discord account to your Roblox username')
+    .setDescription('Link your Roblox account to Discord')
     .addStringOption(option =>
       option.setName('roblox_username')
         .setDescription('Your Roblox username')
@@ -12,15 +12,29 @@ export const linkCommand = {
     ),
   async execute(interaction: any) {
     const robloxUsername = interaction.options.getString('roblox_username', true);
-    const discordId = interaction.user.id;
 
     const robloxRegex = /^[a-zA-Z0-9_]{3,20}$/;
     if (!robloxRegex.test(robloxUsername)) {
-      await interaction.reply({ content: 'Invalid Roblox username. Must be 3-20 alphanumeric characters or underscores.', ephemeral: true });
+      await interaction.reply({ content: 'Invalid Roblox username.', ephemeral: true });
       return;
     }
 
-    linkPlayer(discordId, robloxUsername);
-    await interaction.reply({ content: `Linked <@${discordId}> to Roblox user **${robloxUsername}**`, ephemeral: true });
+    const existing = getPlayerByRobloxId(robloxUsername);
+    if (existing) {
+      if (existing.discord_id === interaction.user.id) {
+        await interaction.reply({ content: 'Already linked to your Discord.', ephemeral: true });
+      } else if (!existing.discord_id.startsWith('rbx_')) {
+        await interaction.reply({ content: 'Already linked to another Discord user.', ephemeral: true });
+      }
+      return;
+    }
+
+    linkPlayer(interaction.user.id, robloxUsername);
+
+    const embed = new EmbedBuilder()
+      .setColor(0x2B2D31)
+      .setDescription(`Linked to **${robloxUsername}**`);
+
+    await interaction.reply({ embeds: [embed] });
   },
 };

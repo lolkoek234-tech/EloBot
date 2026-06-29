@@ -4,6 +4,7 @@ import { profileCommand } from './commands/profile';
 import { leaderboardCommand } from './commands/leaderboard';
 import { matchlogCommand } from './commands/matchlog';
 import { helpCommand } from './commands/help';
+import { verifyCommand } from './commands/verify';
 
 const commands = [
   linkCommand,
@@ -11,6 +12,7 @@ const commands = [
   leaderboardCommand,
   matchlogCommand,
   helpCommand,
+  verifyCommand,
 ];
 
 export async function startBot(token: string, clientId: string, guildId: string): Promise<Client> {
@@ -37,6 +39,7 @@ export async function startBot(token: string, clientId: string, guildId: string)
       'leaderboard': leaderboardCommand.execute,
       'matchlog': matchlogCommand.execute,
       'help': helpCommand.execute,
+      'verify': verifyCommand.execute,
     };
 
     const handler = commandMap[interaction.commandName];

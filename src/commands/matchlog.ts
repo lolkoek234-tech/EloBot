@@ -1,39 +1,43 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import { getRecentMatches, getPlayerByDiscordId } from '../db/queries';
+import { getRecentMatches, getPlayerByRobloxId } from '../db/queries';
 
 export const matchlogCommand = {
   data: new SlashCommandBuilder()
     .setName('matchlog')
-    .setDescription('Show recent match history')
-    .addUserOption(option =>
-      option.setName('user')
-        .setDescription('User to check (defaults to yourself)')
-        .setRequired(false)
+    .setDescription('Show recent match history for a Roblox player')
+    .addStringOption(option =>
+      option.setName('roblox_username')
+        .setDescription('Roblox username to look up')
+        .setRequired(true)
     ),
   async execute(interaction: any) {
-    const targetUser = interaction.options.getUser('user') || interaction.user;
-    const matches = getRecentMatches(targetUser.id, 10);
+    const robloxUsername = interaction.options.getString('roblox_username', true);
+    const player = getPlayerByRobloxId(robloxUsername);
 
-    if (matches.length === 0) {
-      await interaction.reply({ content: 'No matches found for this user.', ephemeral: true });
+    if (!player) {
+      await interaction.reply({ content: `**${robloxUsername}** has no record yet.`, ephemeral: true });
       return;
     }
 
+    const matches = getRecentMatches(player.discord_id, 10);
+
+    if (matches.length === 0) {
+      await interaction.reply({ content: `No matches found for **${robloxUsername}**.`, ephemeral: true });
+      return;
+    }
+
+    const lines = matches.map((m, i) => {
+      const isPlayer1 = m.player1_id === player.discord_id;
+      const myScore = isPlayer1 ? m.score1 : m.score2;
+      const oppScore = isPlayer1 ? m.score2 : m.score1;
+      const eloChange = isPlayer1 ? m.elo_change1 : m.elo_change2;
+      const result = myScore > oppScore ? 'Win' : myScore < oppScore ? 'Loss' : 'Draw';
+      return `#${i + 1} ${result} ${myScore}-${oppScore} (${eloChange > 0 ? '+' : ''}${eloChange} Elo)`;
+    });
+
     const embed = new EmbedBuilder()
-      .setColor(0x2ECC71)
-      .setTitle(`${targetUser.username}'s Recent Matches`)
-      .setDescription(
-        matches.slice(0, 10).map((m, i) => {
-          const isPlayer1 = m.player1_id === targetUser.id;
-          const myScore = isPlayer1 ? m.score1 : m.score2;
-          const oppScore = isPlayer1 ? m.score2 : m.score1;
-          const eloChange = isPlayer1 ? m.elo_change1 : m.elo_change2;
-          const result = myScore > oppScore ? '✅ Win' : myScore < oppScore ? '❌ Loss' : '➖ Draw';
-          return `**#${i + 1}** ${result} ${myScore}-${oppScore} (${eloChange > 0 ? '+' : ''}${eloChange} Elo)`;
-        }).join('\n')
-      )
-      .setFooter({ text: 'Last 10 matches' })
-      .setTimestamp();
+      .setColor(0x2B2D31)
+      .setDescription(lines.join('\n'));
 
     await interaction.reply({ embeds: [embed] });
   },

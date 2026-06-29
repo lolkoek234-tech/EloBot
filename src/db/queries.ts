@@ -1,5 +1,6 @@
 import { getDb } from './schema';
-import { Player, Match, DailyStats, MatchResultInput } from '../types';
+import { Player, Match, DailyStats } from '../types';
+import { getTier } from '../types';
 import { calculateElo, determineWinner } from '../elo';
 
 export function getPlayerByDiscordId(discordId: string): Player | undefined {
@@ -20,52 +21,7 @@ export function getOrCreatePlayerByRobloxId(robloxId: string): Player {
 }
 
 export function createPlayer(discordId: string, robloxId: string): void {
-  getDb().prepare(
-    'INSERT INTO players (discord_id, roblox_id) VALUES (?, ?)'
-  ).run(discordId, robloxId);
-}
-
-export function updatePlayerElo(discordId: string, elo: number, wins: number, losses: number, draws: number): void {
-  getDb().prepare(
-    'UPDATE players SET elo = ?, wins = ?, losses = ?, draws = ?, total_matches = total_matches + 1 WHERE discord_id = ?'
-  ).run(elo, wins, losses, draws, discordId);
-}
-
-export function insertMatch(match: Omit<Match, 'id' | 'fought_at'>): void {
-  getDb().prepare(
-    'INSERT INTO matches (player1_id, player2_id, score1, score2, winner_id, elo_change1, elo_change2) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).run(match.player1_id, match.player2_id, match.score1, match.score2, match.winner_id, match.elo_change1, match.elo_change2);
-}
-
-export function getDailyStats(discordId: string, date: string): DailyStats | undefined {
-  return getDb().prepare(
-    'SELECT * FROM daily_stats WHERE discord_id = ? AND fight_date = ?'
-  ).get(discordId, date) as DailyStats | undefined;
-}
-
-export function incrementDailyStats(discordId: string, date: string): void {
-  const existing = getDailyStats(discordId, date);
-  if (existing) {
-    getDb().prepare(
-      'UPDATE daily_stats SET fight_count = fight_count + 1 WHERE discord_id = ? AND fight_date = ?'
-    ).run(discordId, date);
-  } else {
-    getDb().prepare(
-      'INSERT INTO daily_stats (discord_id, fight_date) VALUES (?, ?)'
-    ).run(discordId, date);
-  }
-}
-
-export function getTopPlayers(limit: number = 10): Player[] {
-  return getDb().prepare(
-    'SELECT * FROM players ORDER BY elo DESC LIMIT ?'
-  ).all(limit) as Player[];
-}
-
-export function getRecentMatches(discordId: string, limit: number = 10): Match[] {
-  return getDb().prepare(
-    'SELECT * FROM matches WHERE player1_id = ? OR player2_id = ? ORDER BY fought_at DESC LIMIT ?'
-  ).all(discordId, discordId, limit) as Match[];
+  getDb().prepare('INSERT INTO players (discord_id, roblox_id) VALUES (?, ?)').run(discordId, robloxId);
 }
 
 export function linkPlayer(discordId: string, robloxId: string): void {
@@ -75,6 +31,74 @@ export function linkPlayer(discordId: string, robloxId: string): void {
   } else {
     createPlayer(discordId, robloxId);
   }
+}
+
+export function getTopPlayers(limit: number = 10): Player[] {
+  return getDb().prepare('SELECT * FROM players ORDER BY elo DESC LIMIT ?').all(limit) as Player[];
+}
+
+export function getRecentMatches(discordId: string, limit: number = 10): Match[] {
+  return getDb().prepare(
+    'SELECT * FROM matches WHERE player1_id = ? OR player2_id = ? ORDER BY fought_at DESC LIMIT ?'
+  ).all(discordId, discordId, limit) as Match[];
+}
+
+export function upgradePlayerDiscordId(oldId: string, newId: string, robloxId: string): void {
+  const db = getDb();
+  db.transaction(() => {
+    db.prepare('UPDATE players SET discord_id = ?, roblox_id = ? WHERE discord_id = ?').run(newId, robloxId, oldId);
+    db.prepare('UPDATE matches SET player1_id = ? WHERE player1_id = ?').run(newId, oldId);
+    db.prepare('UPDATE matches SET player2_id = ? WHERE player2_id = ?').run(newId, oldId);
+    db.prepare('UPDATE matches SET winner_id = ? WHERE winner_id = ?').run(newId, oldId);
+    db.prepare('UPDATE daily_stats SET discord_id = ? WHERE discord_id = ?').run(newId, oldId);
+  })();
+}
+
+export function getDailyStats(discordId: string, date: string): DailyStats | undefined {
+  return getDb().prepare(
+    'SELECT * FROM daily_stats WHERE discord_id = ? AND fight_date = ?'
+  ).get(discordId, date) as DailyStats | undefined;
+}
+
+export interface ProximityCheck {
+  allowed: boolean;
+  reason?: string;
+}
+
+export function checkChallengeProximity(p1Elo: number, p2Elo: number): ProximityCheck {
+  const diff = Math.abs(p1Elo - p2Elo);
+  if (diff <= 20) return { allowed: true };
+
+  const tier1 = getTier(p1Elo);
+  const tier2 = getTier(p2Elo);
+  if (tier1 !== tier2 && diff <= 10) return { allowed: true };
+
+  return { allowed: false, reason: `Elo difference of ${diff} exceeds the limit (20 within tier, 10 across tiers)` };
+}
+
+export function getDailyDuelCount(playerA: string, playerB: string, date: string): number {
+  const [p1, p2] = playerA < playerB ? [playerA, playerB] : [playerB, playerA];
+  const row = getDb().prepare(
+    'SELECT count FROM duel_history WHERE player1_id = ? AND player2_id = ? AND fight_date = ?'
+  ).get(p1, p2, date) as { count: number } | undefined;
+  return row?.count || 0;
+}
+
+export function incrementDuelCount(playerA: string, playerB: string, date: string): void {
+  const [p1, p2] = playerA < playerB ? [playerA, playerB] : [playerB, playerA];
+  const existing = getDb().prepare(
+    'SELECT count FROM duel_history WHERE player1_id = ? AND player2_id = ? AND fight_date = ?'
+  ).get(p1, p2, date) as { count: number } | undefined;
+  if (existing) {
+    getDb().prepare('UPDATE duel_history SET count = count + 1 WHERE player1_id = ? AND player2_id = ? AND fight_date = ?').run(p1, p2, date);
+  } else {
+    getDb().prepare('INSERT INTO duel_history (player1_id, player2_id, fight_date) VALUES (?, ?, ?)').run(p1, p2, date);
+  }
+}
+
+export function applyEloChange(discordId: string, change: number): void {
+  const newElo = Math.max(0, (getPlayerByDiscordId(discordId)?.elo || 0) + change);
+  getDb().prepare('UPDATE players SET elo = ? WHERE discord_id = ?').run(newElo, discordId);
 }
 
 export interface ProcessedMatch {
@@ -87,11 +111,14 @@ export interface ProcessedMatch {
 
 export function processMatch(player1DiscordId: string, player2DiscordId: string, eloA: number, eloB: number, score1: number, score2: number): ProcessedMatch {
   const db = getDb();
-  const transaction = db.transaction(() => {
-    const eloResult = calculateElo(eloA, eloB, score1, score2);
+  return db.transaction(() => {
     const winner = determineWinner(score1, score2);
-
+    const eloResult = calculateElo(winner);
     const winnerId = winner === 'player1' ? player1DiscordId : winner === 'player2' ? player2DiscordId : null;
+
+    const newEloA = Math.max(0, eloA + eloResult.changeA);
+    const newEloB = Math.max(0, eloB + eloResult.changeB);
+
     const p1Wins = winner === 'player1' ? 1 : 0;
     const p1Losses = winner === 'player2' ? 1 : 0;
     const p1Draws = winner === 'draw' ? 1 : 0;
@@ -99,16 +126,13 @@ export function processMatch(player1DiscordId: string, player2DiscordId: string,
     const p2Losses = winner === 'player1' ? 1 : 0;
     const p2Draws = winner === 'draw' ? 1 : 0;
 
-    db.prepare(
-      'UPDATE players SET elo = ?, wins = wins + ?, losses = losses + ?, draws = draws + ?, total_matches = total_matches + 1 WHERE discord_id = ?'
-    ).run(eloResult.newEloA, p1Wins, p1Losses, p1Draws, player1DiscordId);
-    db.prepare(
-      'UPDATE players SET elo = ?, wins = wins + ?, losses = losses + ?, draws = draws + ?, total_matches = total_matches + 1 WHERE discord_id = ?'
-    ).run(eloResult.newEloB, p2Wins, p2Losses, p2Draws, player2DiscordId);
+    db.prepare('UPDATE players SET elo = ?, wins = wins + ?, losses = losses + ?, draws = draws + ?, total_matches = total_matches + 1 WHERE discord_id = ?')
+      .run(newEloA, p1Wins, p1Losses, p1Draws, player1DiscordId);
+    db.prepare('UPDATE players SET elo = ?, wins = wins + ?, losses = losses + ?, draws = draws + ?, total_matches = total_matches + 1 WHERE discord_id = ?')
+      .run(newEloB, p2Wins, p2Losses, p2Draws, player2DiscordId);
 
-    db.prepare(
-      'INSERT INTO matches (player1_id, player2_id, score1, score2, winner_id, elo_change1, elo_change2) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).run(player1DiscordId, player2DiscordId, score1, score2, winnerId, eloResult.changeA, eloResult.changeB);
+    db.prepare('INSERT INTO matches (player1_id, player2_id, score1, score2, winner_id, elo_change1, elo_change2) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(player1DiscordId, player2DiscordId, score1, score2, winnerId, eloResult.changeA, eloResult.changeB);
 
     const today = new Date().toISOString().split('T')[0];
     for (const id of [player1DiscordId, player2DiscordId]) {
@@ -120,8 +144,8 @@ export function processMatch(player1DiscordId: string, player2DiscordId: string,
       }
     }
 
-    return { winnerId, changeA: eloResult.changeA, changeB: eloResult.changeB, newEloA: eloResult.newEloA, newEloB: eloResult.newEloB };
-  });
+    incrementDuelCount(player1DiscordId, player2DiscordId, today);
 
-  return transaction() as ProcessedMatch;
+    return { winnerId, changeA: eloResult.changeA, changeB: eloResult.changeB, newEloA, newEloB };
+  })() as ProcessedMatch;
 }

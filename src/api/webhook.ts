@@ -1,8 +1,8 @@
 import express from 'express';
 import { Client, EmbedBuilder, TextChannel } from 'discord.js';
-import { getOrCreatePlayerByRobloxId, processMatch } from '../db/queries';
+import { getOrCreatePlayerByRobloxId, processMatch, getDailyStats } from '../db/queries';
 import { determineWinner } from '../elo';
-import { MatchResultInput, Region } from '../types';
+import { MatchResultInput, Region, getTier } from '../types';
 
 function getRegionChannels(): Record<string, string> {
   return {
@@ -49,30 +49,39 @@ export function startApi(client: Client, port: number): void {
       if (channelId) {
         const guild = client.guilds.cache.get(process.env.GUILD_ID || '');
         const channel = guild?.channels.cache.get(channelId) || await guild?.channels.fetch(channelId).catch(() => null);
-        if (!channel) {
-          console.warn(`Channel ${channelId} not found in guild`);
-        } else if (channel instanceof TextChannel) {
-          const p1Name = player1.discord_id.startsWith('rbx_') ? player1_roblox : `<@${player1.discord_id}>`;
-          const p2Name = player2.discord_id.startsWith('rbx_') ? player2_roblox : `<@${player2.discord_id}>`;
-          const winnerName = result.winnerId && result.winnerId.startsWith('rbx_')
-            ? (result.winnerId === player1.discord_id ? player1_roblox : player2_roblox)
-            : (result.winnerId ? `<@${result.winnerId}>` : '');
-          const resultText = winner === 'draw' ? 'Draw!' : `${winnerName} wins!`;
+        if (channel instanceof TextChannel) {
+          const today = new Date().toISOString().split('T')[0];
+          const p1Daily = getDailyStats(player1.discord_id, today);
+          const p2Daily = getDailyStats(player2.discord_id, today);
+
+          const p1Name = player1.roblox_id;
+          const p2Name = player2.roblox_id;
+
+          const p1Record = `${player1.wins}-${player1.losses}-${player1.draws}`;
+          const p2Record = `${player2.wins}-${player2.losses}-${player2.draws}`;
+
+          const p1Label = winner === 'player1' ? 'WINNER' : winner === 'draw' ? 'DRAW' : 'LOSER';
+          const p2Label = winner === 'player2' ? 'WINNER' : winner === 'draw' ? 'DRAW' : 'LOSER';
+
+          const p1Tier = getTier(result.newEloA);
+          const p2Tier = getTier(result.newEloB);
+
           const embed = new EmbedBuilder()
-            .setColor(winner === 'draw' ? 0x95A5A6 : 0x00FF00)
-            .setTitle(`Match Result [${(region || 'global').toUpperCase()}]`)
-            .setDescription(
-              `${p1Name} **${score1}** - **${score2}** ${p2Name}
-              ${resultText}
-              ${result.changeA > 0 ? '+' : ''}${result.changeA} Elo • ${result.changeB > 0 ? '+' : ''}${result.changeB} Elo`
-            )
-            .setTimestamp();
-          await channel.send({ embeds: [embed] });
-        } else {
-          console.warn(`Channel ${channelId} not found or not a text channel`);
+            .setColor(0x2B2D31)
+            .setDescription(`${p1Name}   (${p1Record}) ${p1Label}
+Elo = ${result.newEloA} | ${p1Tier}
+Times Fought Today: ${p1Daily?.fight_count || 1}
+Scoreboard: ${score1}-${score2}
+Opponent: ${p2Name}
+-----------------------------
+${p2Name}   (${p2Record}) ${p2Label}
+Elo = ${result.newEloB} | ${p2Tier}
+Times Fought Today: ${p2Daily?.fight_count || 1}
+Scoreboard: ${score2}-${score1}
+Opponent: ${p1Name}`);
+
+          await channel.send({ embeds: [embed], allowedMentions: { parse: [] } });
         }
-      } else {
-        console.warn('No channel configured for region:', region);
       }
 
       res.json({
@@ -82,8 +91,9 @@ export function startApi(client: Client, port: number): void {
         winner: result.winnerId,
       });
     } catch (error) {
-      console.error('Webhook error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('Webhook error:', message);
+      res.status(500).json({ error: message });
     }
   });
 

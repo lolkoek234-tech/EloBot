@@ -22,7 +22,7 @@ function initTables(): void {
     CREATE TABLE IF NOT EXISTS players (
       discord_id TEXT PRIMARY KEY,
       roblox_id TEXT UNIQUE NOT NULL,
-      elo INTEGER NOT NULL DEFAULT 1000,
+      elo INTEGER NOT NULL DEFAULT 0,
       wins INTEGER NOT NULL DEFAULT 0,
       losses INTEGER NOT NULL DEFAULT 0,
       draws INTEGER NOT NULL DEFAULT 0,
@@ -50,6 +50,16 @@ function initTables(): void {
       fight_count INTEGER NOT NULL DEFAULT 1,
       PRIMARY KEY (discord_id, fight_date),
       FOREIGN KEY (discord_id) REFERENCES players(discord_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS duel_history (
+      player1_id TEXT NOT NULL,
+      player2_id TEXT NOT NULL,
+      fight_date TEXT NOT NULL,
+      count INTEGER NOT NULL DEFAULT 1,
+      PRIMARY KEY (player1_id, player2_id, fight_date),
+      FOREIGN KEY (player1_id) REFERENCES players(discord_id),
+      FOREIGN KEY (player2_id) REFERENCES players(discord_id)
     );
   `);
 }

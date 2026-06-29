@@ -13,17 +13,14 @@ export const leaderboardCommand = {
       return;
     }
 
-    const embed = new EmbedBuilder()
-      .setColor(0xF1C40F)
-      .setTitle('🏆 Elo Leaderboard')
-      .setDescription(
-        players.map((p, i) =>
-          `**${i + 1}.** <@${p.discord_id}> — ${p.elo} Elo (${p.wins}W / ${p.losses}L / ${p.draws}D)`
-        ).join('\n')
-      )
-      .setFooter({ text: 'Top 10 by Elo rating' })
-      .setTimestamp();
+    const lines = players.map((p, i) =>
+      `${i + 1}. ${p.roblox_id} - ${p.elo} Elo (${p.wins}-${p.losses}-${p.draws})`
+    );
 
-    await interaction.reply({ embeds: [embed] });
+    const embed = new EmbedBuilder()
+      .setColor(0x2B2D31)
+      .setDescription(lines.join('\n'));
+
+    await interaction.reply({ embeds: [embed], allowedMentions: { parse: [] } });
   },
 };

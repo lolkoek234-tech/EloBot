@@ -27,6 +27,21 @@ export interface DailyStats {
   fight_count: number;
 }
 
+export type Tier = 'Aniki' | 'Kyōdai' | 'Shatei';
+
+export const TIER_BOUNDARIES = [
+  { name: 'Aniki' as Tier, min: 50 },
+  { name: 'Kyōdai' as Tier, min: 25 },
+  { name: 'Shatei' as Tier, min: 0 },
+];
+
+export function getTier(elo: number): Tier {
+  for (const t of TIER_BOUNDARIES) {
+    if (elo >= t.min) return t.name;
+  }
+  return 'Shatei';
+}
+
 export type Region = 'eu' | 'na' | 'asia' | 'global';
 
 export interface MatchResultInput {
