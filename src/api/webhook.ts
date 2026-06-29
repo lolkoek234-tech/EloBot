@@ -13,9 +13,17 @@ function getRegionChannels(): Record<string, string> {
   };
 }
 
+const recentMatches = new Set<string>();
+
+function matchKey(p1: string, p2: string, s1: number, s2: number): string {
+  return `${p1}:${p2}:${s1}:${s2}`;
+}
+
 export function startApi(client: Client, port: number): void {
   const app = express();
   app.use(express.json({ limit: '10kb' }));
+
+  setInterval(() => recentMatches.clear(), 10000);
 
   app.post('/api/match-result', async (req, res) => {
     try {
@@ -43,11 +51,21 @@ export function startApi(client: Client, port: number): void {
         return;
       }
 
+      const key = matchKey(player1_roblox.toLowerCase(), player2_roblox.toLowerCase(), score1, score2);
+      if (recentMatches.has(key)) {
+        res.json({ success: true, duplicate: true });
+        return;
+      }
+      recentMatches.add(key);
+
       const player1 = getOrCreatePlayerByRobloxId(player1_roblox);
       const player2 = getOrCreatePlayerByRobloxId(player2_roblox);
 
       const result = processMatch(player1.discord_id, player2.discord_id, player1.elo, player2.elo, score1, score2);
       const winner = determineWinner(score1, score2);
+
+      const p1 = getOrCreatePlayerByRobloxId(player1_roblox);
+      const p2 = getOrCreatePlayerByRobloxId(player2_roblox);
 
       const channels = getRegionChannels();
       const channelId = channels[region as Region] || channels.global || '';
@@ -56,14 +74,11 @@ export function startApi(client: Client, port: number): void {
         const channel = guild?.channels.cache.get(channelId) || await guild?.channels.fetch(channelId).catch(() => null);
         if (channel instanceof TextChannel) {
           const today = new Date().toISOString().split('T')[0];
-          const p1Daily = getDailyStats(player1.discord_id, today);
-          const p2Daily = getDailyStats(player2.discord_id, today);
+          const p1Daily = getDailyStats(p1.discord_id, today);
+          const p2Daily = getDailyStats(p2.discord_id, today);
 
-          const p1Name = player1.roblox_id;
-          const p2Name = player2.roblox_id;
-
-          const p1Record = `${player1.wins}-${player1.losses}-${player1.draws}`;
-          const p2Record = `${player2.wins}-${player2.losses}-${player2.draws}`;
+          const p1Record = `${p1.wins}-${p1.losses}-${p1.draws}`;
+          const p2Record = `${p2.wins}-${p2.losses}-${p2.draws}`;
 
           const p1Label = winner === 'player1' ? 'WINNER' : winner === 'draw' ? 'DRAW' : 'LOSER';
           const p2Label = winner === 'player2' ? 'WINNER' : winner === 'draw' ? 'DRAW' : 'LOSER';
@@ -73,17 +88,17 @@ export function startApi(client: Client, port: number): void {
 
           const embed = new EmbedBuilder()
             .setColor(0x2B2D31)
-            .setDescription(`${p1Name}   (${p1Record}) ${p1Label}
+            .setDescription(`${p1.roblox_id}   (${p1Record}) ${p1Label}
 Elo = ${result.newEloA} | ${p1Tier}
 Times Fought Today: ${p1Daily?.fight_count || 1}
 Scoreboard: ${score1}-${score2}
-Opponent: ${p2Name}
+Opponent: ${p2.roblox_id}
 -----------------------------
-${p2Name}   (${p2Record}) ${p2Label}
+${p2.roblox_id}   (${p2Record}) ${p2Label}
 Elo = ${result.newEloB} | ${p2Tier}
 Times Fought Today: ${p2Daily?.fight_count || 1}
 Scoreboard: ${score2}-${score1}
-Opponent: ${p1Name}`);
+Opponent: ${p1.roblox_id}`);
 
           await channel.send({ embeds: [embed], allowedMentions: { parse: [] } });
         }
