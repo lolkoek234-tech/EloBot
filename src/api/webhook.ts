@@ -38,6 +38,11 @@ export function startApi(client: Client, port: number): void {
         return;
       }
 
+      if (player1_roblox.toLowerCase() === player2_roblox.toLowerCase()) {
+        res.status(400).json({ error: 'Players must have different names' });
+        return;
+      }
+
       const player1 = getOrCreatePlayerByRobloxId(player1_roblox);
       const player2 = getOrCreatePlayerByRobloxId(player2_roblox);
 
