@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { getPlayerByDiscordId, getPlayerByRobloxId } from '../db/queries';
+import { normalizeId } from '../db/schema';
 import { buildProfileContainer } from './stats';
 
 export const profileCommand = {
@@ -25,7 +26,7 @@ export const profileCommand = {
       player = getPlayerByDiscordId(targetUser.id);
       displayId = targetUser.id;
     } else if (robloxUsername) {
-      player = getPlayerByRobloxId(robloxUsername);
+      player = getPlayerByRobloxId(normalizeId(robloxUsername));
     } else {
       player = getPlayerByDiscordId(interaction.user.id);
       displayId = interaction.user.id;

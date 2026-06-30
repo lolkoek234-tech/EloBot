@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { getRecentMatches, getPlayerByRobloxId } from '../db/queries';
+import { normalizeId } from '../db/schema';
 
 export const matchlogCommand = {
   data: new SlashCommandBuilder()
@@ -12,7 +13,7 @@ export const matchlogCommand = {
     ),
   async execute(interaction: any) {
     const robloxUsername = interaction.options.getString('roblox_username', true);
-    const player = getPlayerByRobloxId(robloxUsername);
+    const player = getPlayerByRobloxId(normalizeId(robloxUsername));
 
     if (!player) {
       await interaction.reply({ content: `**${robloxUsername}** has no record yet.`, ephemeral: true });

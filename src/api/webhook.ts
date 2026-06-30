@@ -1,6 +1,7 @@
 import express from 'express';
 import { Client, TextChannel, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MessageFlags } from 'discord.js';
 import { getOrCreatePlayerByRobloxId, processMatch, getDailyStats, getWinStreak, getTopPlayers, getTopPlayersByRegion, consumeOAuthState, linkPlayer, getPlayerByRobloxId, upgradePlayerDiscordId, getPlayerByDiscordId } from '../db/queries';
+import { normalizeId } from '../db/schema';
 import { determineWinner } from '../elo';
 import { MatchResultInput, Region, getTier } from '../types';
 
@@ -65,7 +66,9 @@ export function startApi(client: Client, port: number): void {
         return;
       }
 
-      const { player1_roblox, player2_roblox, score1, score2, region } = req.body as MatchResultInput;
+      const { score1, score2, region } = req.body as MatchResultInput;
+      const player1_roblox = normalizeId(req.body.player1_roblox || '');
+      const player2_roblox = normalizeId(req.body.player2_roblox || '');
 
       if (!player1_roblox || !player2_roblox || typeof score1 !== 'number' || typeof score2 !== 'number') {
         res.status(400).json({ error: 'Missing or invalid required fields' });
@@ -199,7 +202,7 @@ export function startApi(client: Client, port: number): void {
         return;
       }
       const userinfo = await userinfoRes.json() as { sub: string; preferred_username?: string; nickname?: string; name?: string };
-      const roblox_id = userinfo.preferred_username || userinfo.nickname || userinfo.name || `User_${userinfo.sub}`;
+      const roblox_id = normalizeId(userinfo.preferred_username || userinfo.nickname || userinfo.name || `User_${userinfo.sub}`);
 
       const robloxRegex = /^[a-zA-Z0-9_]{3,20}$/;
       if (!robloxRegex.test(roblox_id)) {

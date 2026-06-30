@@ -1,36 +1,69 @@
-import { getDb } from './schema';
+import { getDb, normalizeId } from './schema';
 import { Player, Match, DailyStats, VerificationCode } from '../types';
 import { getTier } from '../types';
 import { calculateElo, determineWinner } from '../elo';
-
 
 export function getPlayerByDiscordId(discordId: string): Player | undefined {
   return getDb().prepare('SELECT * FROM players WHERE discord_id = ?').get(discordId) as unknown as Player | undefined;
 }
 
 export function getPlayerByRobloxId(robloxId: string): Player | undefined {
-  return getDb().prepare('SELECT * FROM players WHERE roblox_id = ?').get(robloxId) as unknown as Player | undefined;
+  return getDb().prepare('SELECT * FROM players WHERE roblox_id = ?').get(normalizeId(robloxId)) as unknown as Player | undefined;
 }
 
 export function getOrCreatePlayerByRobloxId(robloxId: string): Player {
-  const existing = getPlayerByRobloxId(robloxId);
+  const normalized = normalizeId(robloxId);
+  const existing = getPlayerByRobloxId(normalized);
   if (existing) return existing;
 
-  const syntheticId = 'rbx_' + robloxId;
-  createPlayer(syntheticId, robloxId);
-  return getPlayerByRobloxId(robloxId)!;
+  const syntheticId = 'rbx_' + normalized;
+  createPlayer(syntheticId, normalized);
+  return getPlayerByRobloxId(normalized)!;
 }
 
 export function createPlayer(discordId: string, robloxId: string): void {
-  getDb().prepare('INSERT INTO players (discord_id, roblox_id) VALUES (?, ?)').run(discordId, robloxId);
+  getDb().prepare('INSERT INTO players (discord_id, roblox_id) VALUES (?, ?)').run(discordId, normalizeId(robloxId));
 }
 
 export function linkPlayer(discordId: string, robloxId: string): void {
+  const normalized = normalizeId(robloxId);
   const existing = getPlayerByDiscordId(discordId);
   if (existing) {
-    getDb().prepare('UPDATE players SET roblox_id = ? WHERE discord_id = ?').run(robloxId, discordId);
+    // if the existing record has a different roblox_id, check for a duplicate by normalized roblox_id
+    if (normalizeId(existing.roblox_id) !== normalized) {
+      const dup = getPlayerByRobloxId(normalized);
+      if (dup && dup.discord_id.startsWith('rbx_')) {
+        // merge rbx_ record's data into the linked record, then delete it
+        mergeAndDelete(dup, discordId);
+        return;
+      }
+    }
+    getDb().prepare('UPDATE players SET roblox_id = ? WHERE discord_id = ?').run(normalized, discordId);
   } else {
-    createPlayer(discordId, robloxId);
+    createPlayer(discordId, normalized);
+  }
+}
+
+function mergeAndDelete(source: Player, targetDiscordId: string): void {
+  const db = getDb();
+  db.exec('BEGIN');
+  try {
+    db.prepare(
+      'UPDATE players SET elo = MAX(elo, ?), wins = wins + ?, losses = losses + ?, draws = draws + ?, total_matches = total_matches + ?, region = CASE WHEN ? != \'\' THEN ? ELSE region END WHERE discord_id = ?'
+    ).run(source.elo, source.wins, source.losses, source.draws, source.total_matches, source.region, source.region, targetDiscordId);
+
+    db.prepare('UPDATE matches SET player1_id = ? WHERE player1_id = ?').run(targetDiscordId, source.discord_id);
+    db.prepare('UPDATE matches SET player2_id = ? WHERE player2_id = ?').run(targetDiscordId, source.discord_id);
+    db.prepare('UPDATE matches SET winner_id = ? WHERE winner_id = ?').run(targetDiscordId, source.discord_id);
+    db.prepare('UPDATE daily_stats SET discord_id = ? WHERE discord_id = ?').run(targetDiscordId, source.discord_id);
+    db.prepare('UPDATE duel_history SET player1_id = ? WHERE player1_id = ?').run(targetDiscordId, source.discord_id);
+    db.prepare('UPDATE duel_history SET player2_id = ? WHERE player2_id = ?').run(targetDiscordId, source.discord_id);
+
+    db.prepare('DELETE FROM players WHERE discord_id = ?').run(source.discord_id);
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
   }
 }
 
@@ -102,10 +135,23 @@ export function getRecentMatches(discordId: string, limit: number = 10): Match[]
 }
 
 export function upgradePlayerDiscordId(oldId: string, newId: string, robloxId: string): void {
+  const normalizedRbx = normalizeId(robloxId);
   const db = getDb();
+
+  // if a player with newId already exists, merge instead
+  const existing = getPlayerByDiscordId(newId);
+  if (existing) {
+    const source = getPlayerByDiscordId(oldId);
+    if (source) {
+      mergeAndDelete(source, newId);
+    }
+    db.prepare('UPDATE players SET roblox_id = ? WHERE discord_id = ?').run(normalizedRbx, newId);
+    return;
+  }
+
   db.exec('BEGIN');
   try {
-    db.prepare('UPDATE players SET discord_id = ?, roblox_id = ? WHERE discord_id = ?').run(newId, robloxId, oldId);
+    db.prepare('UPDATE players SET discord_id = ?, roblox_id = ? WHERE discord_id = ?').run(newId, normalizedRbx, oldId);
     db.prepare('UPDATE matches SET player1_id = ? WHERE player1_id = ?').run(newId, oldId);
     db.prepare('UPDATE matches SET player2_id = ? WHERE player2_id = ?').run(newId, oldId);
     db.prepare('UPDATE matches SET winner_id = ? WHERE winner_id = ?').run(newId, oldId);

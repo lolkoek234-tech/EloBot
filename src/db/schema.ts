@@ -18,9 +18,57 @@ export function getDb(): DatabaseSync {
   return db;
 }
 
+export function normalizeId(id: string): string {
+  return id.trim().toLowerCase();
+}
+
 function migrate(): void {
   try { db.exec("ALTER TABLE players ADD COLUMN region TEXT NOT NULL DEFAULT ''"); } catch (e) {}
   try { db.exec("ALTER TABLE matches ADD COLUMN region TEXT NOT NULL DEFAULT ''"); } catch (e) {}
+
+  // merge duplicate players with case-insensitive roblox_id matches
+  try {
+    const dupes = db.prepare(`
+      SELECT LOWER(roblox_id) AS norm, COUNT(*) AS cnt
+      FROM players GROUP BY norm HAVING cnt > 1
+    `).all() as { norm: string; cnt: number }[];
+
+    for (const d of dupes) {
+      const group = db.prepare(
+        'SELECT * FROM players WHERE LOWER(roblox_id) = ? ORDER BY CASE WHEN discord_id LIKE \'rbx_%\' THEN 1 ELSE 0 END, total_matches DESC'
+      ).all(d.norm) as any[];
+
+      const survivor = group[0];
+      for (let i = 1; i < group.length; i++) {
+        const dup = group[i];
+
+        // merge stats
+        db.prepare(
+          'UPDATE players SET elo = MAX(elo, ?), wins = wins + ?, losses = losses + ?, draws = draws + ?, total_matches = total_matches + ? WHERE discord_id = ?'
+        ).run(dup.elo, dup.wins, dup.losses, dup.draws, dup.total_matches, survivor.discord_id);
+
+        // re-parent match references
+        db.prepare('UPDATE matches SET player1_id = ? WHERE player1_id = ?').run(survivor.discord_id, dup.discord_id);
+        db.prepare('UPDATE matches SET player2_id = ? WHERE player2_id = ?').run(survivor.discord_id, dup.discord_id);
+        db.prepare('UPDATE matches SET winner_id = ? WHERE winner_id = ?').run(survivor.discord_id, dup.discord_id);
+        db.prepare('UPDATE daily_stats SET discord_id = ? WHERE discord_id = ?').run(survivor.discord_id, dup.discord_id);
+        db.prepare('UPDATE duel_history SET player1_id = ? WHERE player1_id = ?').run(survivor.discord_id, dup.discord_id);
+        db.prepare('UPDATE duel_history SET player2_id = ? WHERE player2_id = ?').run(survivor.discord_id, dup.discord_id);
+
+        db.prepare('DELETE FROM players WHERE discord_id = ?').run(dup.discord_id);
+      }
+
+      // lowercase the survivor's roblox_id
+      db.prepare('UPDATE players SET roblox_id = LOWER(roblox_id) WHERE discord_id = ?').run(survivor.discord_id);
+    }
+  } catch (e) {
+    // migration may fail on first run if columns don't exist yet — safe to ignore
+  }
+
+  // lowercase any remaining mixed-case roblox_ids
+  try {
+    db.exec("UPDATE players SET roblox_id = LOWER(roblox_id) WHERE roblox_id != LOWER(roblox_id)");
+  } catch (e) {}
 }
 
 function initTables(): void {
