@@ -229,34 +229,39 @@ export function startApi(client: Client, port: number): void {
       }
 
       const guildId = process.env.GUILD_ID;
-      const guild = guildId ? client.guilds.cache.get(guildId) || await client.guilds.fetch(guildId).catch(() => null) : null;
-      if (guild) {
-        try {
-          const member = await guild.members.fetch(discordId);
+      if (!guildId) {
+        console.error('GUILD_ID not set, skipping role/nickname');
+      } else {
+        const guild = client.guilds.cache.get(guildId) || await client.guilds.fetch(guildId).catch((e: any) => { console.error('Guild fetch failed:', e.message); return null; });
+        if (guild) {
+          try {
+            const member = await guild.members.fetch(discordId);
 
-          if (oldRobloxId && oldRobloxId !== roblox_id) {
-            const oldRole = guild.roles.cache.find(r => r.name === oldRobloxId);
-            if (oldRole) {
-              await member.roles.remove(oldRole).catch(() => {});
-              if (oldRole.members.size === 0) {
-                await oldRole.delete().catch(() => {});
+            // remove old role if re-linking
+            if (oldRobloxId && oldRobloxId !== roblox_id) {
+              const oldRole = guild.roles.cache.find(r => r.name === oldRobloxId);
+              if (oldRole) {
+                await member.roles.remove(oldRole).catch(() => {});
+                if (oldRole.members.size === 0) await oldRole.delete().catch(() => {});
               }
             }
-          }
 
-          const existingRoles = member.roles.cache.filter(r => r.name.startsWith('rbx_')).map(r => r.id);
-          for (const roleId of existingRoles) {
-            await member.roles.remove(roleId).catch(() => {});
-          }
+            // remove auto-created roles
+            for (const role of member.roles.cache.filter(r => r.name.startsWith('rbx_')).values()) {
+              await member.roles.remove(role).catch(() => {});
+            }
 
-          let role = guild.roles.cache.find(r => r.name === roblox_id);
-          if (!role) {
-            role = await guild.roles.create({ name: roblox_id, mentionable: false });
+            // create/assign role
+            let role = guild.roles.cache.find(r => r.name === roblox_id);
+            if (!role) role = await guild.roles.create({ name: roblox_id, mentionable: false });
+            await member.roles.add(role);
+
+            // set nickname
+            await member.setNickname(roblox_id);
+            console.log(`Nickname set to ${roblox_id} for ${discordId}`);
+          } catch (roleErr: any) {
+            console.error('Nickname/role error:', roleErr.message);
           }
-          await member.roles.add(role);
-          await member.setNickname(roblox_id).catch(e => console.error('Nickname change failed:', e.message));
-        } catch (roleErr) {
-          console.error('Role/nickname assignment failed:', roleErr);
         }
       }
 

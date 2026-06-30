@@ -40,7 +40,7 @@ export async function startBot(token: string, clientId: string, guildId: string)
     console.error('Failed to register commands:', error);
   }
 
-  const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+  const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
 
   client.on('interactionCreate', async (interaction: any) => {
     if (interaction.isChatInputCommand()) {
