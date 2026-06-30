@@ -33,6 +33,7 @@ function matchKey(p1: string, p2: string, s1: number, s2: number): string {
 export function startApi(client: Client, port: number): void {
   const app = express();
   app.use(express.json({ limit: '10kb' }));
+  app.use(express.static('public'));
 
   setInterval(() => recentMatches.clear(), 10000);
 
@@ -276,7 +277,7 @@ export function startApi(client: Client, port: number): void {
 
   function pageHtml(title: string, body: string, isSuccess?: boolean): string {
     const icon = isSuccess
-      ? '<svg width="56" height="56" viewBox="0 0 56 56" fill="none" style="margin-bottom:1.5rem;display:block;margin-left:auto;margin-right:auto"><circle cx="28" cy="28" r="28" fill="#23A55A"/><path d="M16 28.5l8 8L40 20" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      ? '<img src="/logo.png" alt="" style="width:80px;height:80px;margin-bottom:1.5rem;display:block;margin-left:auto;margin-right:auto;border-radius:12px">'
       : '';
     return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>*,:after,:before{box-sizing:border-box;margin:0;padding:0}body{background:#313338;color:#DBDEE1;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen,Ubuntu,Cantarell,Fira Sans,Droid Sans,Helvetica Neue,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;padding:1.5rem;line-height:1.5}.card{background:#2B2D31;border:1px solid #3F4147;border-radius:8px;padding:2rem 2.5rem;max-width:420px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.3)}h1{font-size:1.35rem;font-weight:600;color:#F2F3F5;margin-bottom:.35rem}p{color:#9B9DA2;font-size:.9rem;margin-bottom:1.5rem}a{color:#00A8FC;text-decoration:none;font-size:.85rem}a:hover{text-decoration:underline}.legal{margin-top:.5rem;padding-top:1rem;border-top:1px solid #3F4147;display:flex;justify-content:center;gap:1.25rem}</style></head><body><div class="card">${icon}<h1>${title}</h1><p>${body}</p></div></body></html>`;
   }
