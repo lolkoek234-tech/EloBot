@@ -60,11 +60,7 @@ export function getWinStreak(discordId: string): number {
     const myScore = isP1 ? row.score1 : row.score2;
     const oppScore = isP1 ? row.score2 : row.score1;
     if (myScore > oppScore) {
-      if (streak >= 0) streak++;
-      else break;
-    } else if (myScore < oppScore) {
-      if (streak <= 0) streak--;
-      else break;
+      streak++;
     } else {
       break;
     }
