@@ -1,6 +1,6 @@
 import express from 'express';
 import { Client, EmbedBuilder, TextChannel } from 'discord.js';
-import { getOrCreatePlayerByRobloxId, processMatch, getDailyStats, getWinStreak, getTopPlayers, getTopPlayersByRegion, consumeVerificationCode, linkPlayer, getPlayerByRobloxId, upgradePlayerDiscordId, getPlayerByDiscordId } from '../db/queries';
+import { getOrCreatePlayerByRobloxId, processMatch, getDailyStats, getWinStreak, getTopPlayers, getTopPlayersByRegion, consumeOAuthState, linkPlayer, getPlayerByRobloxId, upgradePlayerDiscordId, getPlayerByDiscordId } from '../db/queries';
 import { determineWinner } from '../elo';
 import { MatchResultInput, Region, getTier } from '../types';
 
@@ -152,41 +152,72 @@ ${flag} **${p2.roblox_id}** ${p2Label}
     }
   });
 
-  app.post('/api/verify-link', async (req, res) => {
+  app.get('/api/oauth/callback', async (req, res) => {
     try {
-      const secret = process.env.WEBHOOK_SECRET || '';
-      const auth = req.headers['authorization'];
-      if (secret && auth !== `Bearer ${secret}`) {
-        res.status(401).json({ error: 'Unauthorized' });
+      const { code, state } = req.query as { code?: string; state?: string };
+      if (!code || !state) {
+        res.status(400).send('Missing code or state parameter');
         return;
       }
 
-      const { code, roblox_id } = req.body as { code?: string; roblox_id?: string };
-      if (!code || !roblox_id) {
-        res.status(400).json({ error: 'Missing code or roblox_id' });
+      const discordId = consumeOAuthState(state);
+      if (!discordId) {
+        res.status(400).send('Invalid or expired state. Run /link again in Discord.');
         return;
       }
+
+      const clientId = process.env.ROBLOX_OAUTH_CLIENT_ID || '';
+      const clientSecret = process.env.ROBLOX_OAUTH_CLIENT_SECRET || '';
+      const redirectUri = process.env.REDIRECT_URI || `https://${req.get('host')}/api/oauth/callback`;
+
+      const tokenBody = new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        code,
+        grant_type: 'authorization_code',
+        redirect_uri: redirectUri,
+      });
+
+      const tokenRes = await fetch('https://apis.roblox.com/oauth/v1/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: tokenBody.toString(),
+      });
+      if (!tokenRes.ok) {
+        const errText = await tokenRes.text();
+        console.error('Token exchange failed:', errText);
+        res.status(500).send('Failed to verify with Roblox. Try again.');
+        return;
+      }
+      const tokenData = await tokenRes.json() as { access_token: string };
+
+      const userinfoRes = await fetch('https://apis.roblox.com/oauth/v1/userinfo', {
+        headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      });
+      if (!userinfoRes.ok) {
+        const errText = await userinfoRes.text();
+        console.error('Userinfo fetch failed:', errText);
+        res.status(500).send('Failed to get Roblox user info. Try again.');
+        return;
+      }
+      const userinfo = await userinfoRes.json() as { sub: string; preferred_username?: string; nickname?: string; name?: string };
+      const roblox_id = userinfo.preferred_username || userinfo.nickname || userinfo.name || `User_${userinfo.sub}`;
 
       const robloxRegex = /^[a-zA-Z0-9_]{3,20}$/;
       if (!robloxRegex.test(roblox_id)) {
-        res.status(400).json({ error: 'Invalid Roblox username' });
-        return;
-      }
-
-      const discordId = consumeVerificationCode(code.toUpperCase());
-      if (!discordId) {
-        res.status(400).json({ error: 'Invalid or expired verification code. Run /link again in Discord.' });
+        console.error(`Invalid roblox_id from OAuth: ${roblox_id}`);
+        res.status(500).send('Invalid Roblox username returned.');
         return;
       }
 
       const existingByRoblox = getPlayerByRobloxId(roblox_id);
       if (existingByRoblox && !existingByRoblox.discord_id.startsWith('rbx_') && existingByRoblox.discord_id !== discordId) {
-        res.status(400).json({ error: 'This Roblox account is already linked to another Discord user.' });
+        res.status(400).send('This Roblox account is already linked to another Discord user.');
         return;
       }
 
       if (existingByRoblox && existingByRoblox.discord_id === discordId) {
-        res.json({ success: true, linked: true, roblox_id });
+        res.send(successHtml(roblox_id));
         return;
       }
 
@@ -222,12 +253,7 @@ ${flag} **${p2.roblox_id}** ${p2Label}
 
           let role = guild.roles.cache.find(r => r.name === roblox_id);
           if (!role) {
-            role = await guild.roles.create({
-              name: roblox_id,
-              mentionable: false,
-            });
-          } else if (role.members.size === 0) {
-            // role exists but was orphaned, re-use it
+            role = await guild.roles.create({ name: roblox_id, mentionable: false });
           }
           await member.roles.add(role);
           await member.setNickname(roblox_id).catch(() => {});
@@ -240,24 +266,28 @@ ${flag} **${p2.roblox_id}** ${p2Label}
         const user = await client.users.fetch(discordId);
         const dmEmbed = new EmbedBuilder()
           .setColor(0x2B2D31)
-          .setDescription(`# Verified
+          .setDescription(`# You're Verified!
 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-Your Discord account has been linked to **${roblox_id}**.
+Your Discord has been linked to **${roblox_id}**.
 
-You can now use all Elo Bot commands.`);
+You can go back to Discord now.`);
         await user.send({ embeds: [dmEmbed] }).catch(() => {});
       } catch {
         // DM fails if user has DMs closed, that's fine
       }
 
-      res.json({ success: true, linked: true, roblox_id });
+      res.send(successHtml(roblox_id));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error('Verify-link error:', message);
-      res.status(500).json({ error: message });
+      console.error('OAuth callback error:', message);
+      res.status(500).send('Verification failed. Try running /link again.');
     }
   });
+
+  function successHtml(roblox_id: string): string {
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Verified</title><style>body{background:#1a1a2e;color:#fff;font-family:sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;text-align:center}.card{background:#2B2D31;padding:2rem;border-radius:12px;max-width:400px}.check{font-size:64px;margin-bottom:1rem}h1{margin:0 0 .5rem}p{color:#aaa;margin:0}</style></head><body><div class="card"><div class="check">✅</div><h1>Verified!</h1><p>Your Discord is now linked to <strong>${roblox_id}</strong>.<br>You can go back to Discord.</p></div></body></html>`;
+  }
 
   app.listen(port, () => {
     console.log(`Webhook API listening on port ${port}`);

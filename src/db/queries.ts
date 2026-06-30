@@ -2,7 +2,7 @@ import { getDb } from './schema';
 import { Player, Match, DailyStats, VerificationCode } from '../types';
 import { getTier } from '../types';
 import { calculateElo, determineWinner } from '../elo';
-import crypto from 'crypto';
+
 
 export function getPlayerByDiscordId(discordId: string): Player | undefined {
   return getDb().prepare('SELECT * FROM players WHERE discord_id = ?').get(discordId) as unknown as Player | undefined;
@@ -121,30 +121,19 @@ export function upgradePlayerDiscordId(oldId: string, newId: string, robloxId: s
   }
 }
 
-export function generateVerificationCode(discordId: string): string {
-  cleanupExpiredCodes();
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const bytes = crypto.randomBytes(6);
-  let code = '';
-  for (let i = 0; i < 6; i++) {
-    code += chars[bytes[i] % chars.length];
-  }
+export function createOAuthState(state: string, discordId: string): void {
+  getDb().prepare("DELETE FROM verification_codes WHERE discord_id = ?").run(discordId);
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-  getDb().prepare('INSERT OR REPLACE INTO verification_codes (code, discord_id, expires_at) VALUES (?, ?, ?)').run(code, discordId, expiresAt);
-  return code;
+  getDb().prepare('INSERT INTO verification_codes (code, discord_id, expires_at) VALUES (?, ?, ?)').run(state, discordId, expiresAt);
 }
 
-export function consumeVerificationCode(code: string): string | null {
+export function consumeOAuthState(state: string): string | null {
   const row = getDb().prepare(
-    'SELECT discord_id FROM verification_codes WHERE code = ? AND expires_at > datetime(\'now\')'
-  ).get(code) as { discord_id: string } | undefined;
+    "SELECT discord_id FROM verification_codes WHERE code = ? AND expires_at > datetime('now')"
+  ).get(state) as { discord_id: string } | undefined;
   if (!row) return null;
-  getDb().prepare('DELETE FROM verification_codes WHERE code = ?').run(code);
+  getDb().prepare('DELETE FROM verification_codes WHERE code = ?').run(state);
   return row.discord_id;
-}
-
-function cleanupExpiredCodes(): void {
-  getDb().prepare("DELETE FROM verification_codes WHERE expires_at <= datetime('now')").run();
 }
 
 export function getDailyStats(discordId: string, date: string): DailyStats | undefined {
