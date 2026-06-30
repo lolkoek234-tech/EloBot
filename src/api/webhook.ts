@@ -157,13 +157,13 @@ export function startApi(client: Client, port: number): void {
     try {
       const { code, state } = req.query as { code?: string; state?: string };
       if (!code || !state) {
-        res.status(400).send('Missing code or state parameter');
+        res.status(400).send(pageHtml('Error', 'Missing code or state parameter. Please run /link again.'));
         return;
       }
 
       const discordId = consumeOAuthState(state);
       if (!discordId) {
-        res.status(400).send('Invalid or expired state. Run /link again in Discord.');
+        res.status(400).send(pageHtml('Error', 'This link has expired. Please run /link again in Discord.'));
         return;
       }
 
@@ -187,7 +187,7 @@ export function startApi(client: Client, port: number): void {
       if (!tokenRes.ok) {
         const errText = await tokenRes.text();
         console.error('Token exchange failed:', errText);
-        res.status(500).send('Failed to verify with Roblox. Try again.');
+        res.status(500).send(pageHtml('Error', 'Failed to verify with Roblox. Please try running /link again.'));
         return;
       }
       const tokenData = await tokenRes.json() as { access_token: string };
@@ -198,7 +198,7 @@ export function startApi(client: Client, port: number): void {
       if (!userinfoRes.ok) {
         const errText = await userinfoRes.text();
         console.error('Userinfo fetch failed:', errText);
-        res.status(500).send('Failed to get Roblox user info. Try again.');
+        res.status(500).send(pageHtml('Error', 'Failed to get Roblox user info. Please try running /link again.'));
         return;
       }
       const userinfo = await userinfoRes.json() as { sub: string; preferred_username?: string; nickname?: string; name?: string };
@@ -207,13 +207,13 @@ export function startApi(client: Client, port: number): void {
       const robloxRegex = /^[a-zA-Z0-9_]{3,20}$/;
       if (!robloxRegex.test(roblox_id)) {
         console.error(`Invalid roblox_id from OAuth: ${roblox_id}`);
-        res.status(500).send('Invalid Roblox username returned.');
+        res.status(500).send(pageHtml('Error', 'Invalid Roblox profile. Please try running /link again.'));
         return;
       }
 
       const existingByRoblox = getPlayerByRobloxId(roblox_id);
       if (existingByRoblox && !existingByRoblox.discord_id.startsWith('rbx_') && existingByRoblox.discord_id !== discordId) {
-        res.status(400).send('This Roblox account is already linked to another Discord user.');
+        res.status(400).send(pageHtml('Error', 'This Roblox account is already linked to another Discord user.'));
         return;
       }
 
@@ -270,22 +270,25 @@ export function startApi(client: Client, port: number): void {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error('OAuth callback error:', message);
-      res.status(500).send(`Verification failed: ${message}`);
+      res.status(500).send(pageHtml('Error', message));
     }
   });
 
-  function successHtml(roblox_id: string): string {
-    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Verified</title><style>body{background:#1a1a2e;color:#fff;font-family:sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;text-align:center}.card{background:#2B2D31;padding:2rem;border-radius:12px;max-width:400px}.check{font-size:64px;margin-bottom:1rem}h1{margin:0 0 .5rem}p{color:#aaa;margin:0}</style></head><body><div class="card"><div class="check">✅</div><h1>Verified!</h1><p>Your Discord is now linked to <strong>${roblox_id}</strong>.<br>You can go back to Discord.</p></div></body></html>`;
+  function pageHtml(title: string, body: string, isSuccess?: boolean): string {
+    const icon = isSuccess
+      ? '<svg width="56" height="56" viewBox="0 0 56 56" fill="none" style="margin-bottom:1.5rem;display:block;margin-left:auto;margin-right:auto"><circle cx="28" cy="28" r="28" fill="#23A55A"/><path d="M16 28.5l8 8L40 20" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      : '';
+    return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>*,:after,:before{box-sizing:border-box;margin:0;padding:0}body{background:#313338;color:#DBDEE1;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Oxygen,Ubuntu,Cantarell,Fira Sans,Droid Sans,Helvetica Neue,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;padding:1.5rem;line-height:1.5}.card{background:#2B2D31;border:1px solid #3F4147;border-radius:8px;padding:2rem 2.5rem;max-width:420px;width:100%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.3)}h1{font-size:1.35rem;font-weight:600;color:#F2F3F5;margin-bottom:.35rem}p{color:#9B9DA2;font-size:.9rem;margin-bottom:1.5rem}a{color:#00A8FC;text-decoration:none;font-size:.85rem}a:hover{text-decoration:underline}.legal{margin-top:.5rem;padding-top:1rem;border-top:1px solid #3F4147;display:flex;justify-content:center;gap:1.25rem}</style></head><body><div class="card">${icon}<h1>${title}</h1><p>${body}</p></div></body></html>`;
   }
 
-  app.get('/privacy', (_req, res) => res.send(simplePage('Privacy Policy', 'Elo Bot does not store any personal data beyond what is required for Discord and Roblox integration. Match results, Elo ratings, and linked account IDs are stored for leaderboard functionality. No data is shared with third parties.')));
-  app.get('/terms', (_req, res) => res.send(simplePage('Terms of Service', 'By using Elo Bot, you agree to use it only for its intended purpose of Elo-based PVP matchmaking. Abuse of the bot or its API may result in a permanent ban. This service is provided as-is without warranty.')));
+  function successHtml(roblox_id: string): string {
+    return pageHtml('Verified!', `Your Discord account is now linked to <strong>${roblox_id}</strong>.<br><br>You can close this tab and return to Discord.`, true);
+  }
+
+  app.get('/privacy', (_req, res) => res.send(pageHtml('Privacy Policy', 'Elo Bot stores only the data required for Discord and Roblox integration — match results, Elo ratings, and linked account IDs. No data is shared with third parties. You can request data deletion at any time.')));
+  app.get('/terms', (_req, res) => res.send(pageHtml('Terms of Service', 'By using Elo Bot, you agree to use it only for its intended purpose of Elo-based PVP matchmaking. Abuse of the bot, its API, or the linked Roblox game may result in a permanent ban. This service is provided as-is without warranty.')));
 
   app.listen(port, () => {
     console.log(`Webhook API listening on port ${port}`);
   });
-}
-
-function simplePage(title: string, body: string): string {
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>body{background:#1a1a2e;color:#fff;font-family:sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;padding:2rem;text-align:center}h1{margin:0 0 1rem}p{color:#aaa;max-width:600px;line-height:1.6}</style></head><body><div><h1>${title}</h1><p>${body}</p></div></body></html>`;
 }
