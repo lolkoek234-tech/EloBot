@@ -57,14 +57,18 @@ export function buildLeaderboardData(filterRegion?: string): { components: any[]
     return `**#${i + 1}**${regionPart}\n${p.elo} ELO | ${p.wins}W/${p.losses}L | ${wr}% WR | Streak ${streak} | ${p.total_matches} Matches`;
   });
 
+  const refreshId = filterRegion ? `refresh_${filterRegion}` : 'refresh';
+
   const container = new ContainerBuilder()
     .setAccentColor(0x2B2D31)
     .addTextDisplayComponents(td => td.setContent(`# ${title}\n${scope}`))
     .addSeparatorComponents(sep => sep.setDivider(true))
     .addTextDisplayComponents(td => td.setContent(lines.join('\n\n')))
-    .addTextDisplayComponents(td => td.setContent(`Updated: <t:${unix}:R>`))
+    .addTextDisplayComponents(td => td.setContent(`-# Updated: <t:${unix}:R>`))
+    .addSeparatorComponents(sep => sep.setDivider(true))
     .addActionRowComponents(row => row.setComponents(
-      new ButtonBuilder().setCustomId('mystats').setLabel('My Stats').setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId('mystats').setLabel('My Stats').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId(refreshId).setLabel('Refresh').setStyle(ButtonStyle.Secondary)
     ));
 
   return { components: [container], flags: MessageFlags.IsComponentsV2 };

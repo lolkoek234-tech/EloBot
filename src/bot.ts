@@ -89,6 +89,21 @@ export async function startBot(token: string, clientId: string, guildId: string)
         await interaction.reply({ content: 'An error occurred.', ephemeral: true });
       }
     }
+
+    if (interaction.isButton() && interaction.customId.startsWith('refresh')) {
+      try {
+        const region = interaction.customId.startsWith('refresh_') ? interaction.customId.slice(8) : undefined;
+        const data = buildLeaderboardData(region);
+        if (!data) {
+          await interaction.reply({ content: 'No data to refresh.', ephemeral: true });
+          return;
+        }
+        await interaction.update({ components: data.components, flags: data.flags });
+      } catch (error) {
+        console.error('Refresh button error:', error);
+        await interaction.reply({ content: 'An error occurred.', ephemeral: true });
+      }
+    }
   });
 
   await client.login(token);

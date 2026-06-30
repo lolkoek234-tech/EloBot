@@ -40,6 +40,7 @@ export const matchlogCommand = {
     const container = new ContainerBuilder()
       .setAccentColor(0x2B2D31)
       .addTextDisplayComponents(td => td.setContent(lines.join('\n\n')))
+      .addSeparatorComponents(sep => sep.setDivider(true))
       .addActionRowComponents(row => row.setComponents(
         new ButtonBuilder().setCustomId('mystats').setLabel('My Stats').setStyle(ButtonStyle.Secondary)
       ));

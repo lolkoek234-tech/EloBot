@@ -31,6 +31,7 @@ export const linkCommand = {
       .addSeparatorComponents(sep => sep.setDivider(true))
       .addTextDisplayComponents(td => td.setContent('Roblox will ask you to confirm — click the button below and hit **Authorize**.'))
       .addTextDisplayComponents(td => td.setContent("You'll get a DM here when you're verified."))
+      .addSeparatorComponents(sep => sep.setDivider(true))
       .addActionRowComponents(row => row.setComponents(
         new ButtonBuilder().setLabel('Verify with Roblox').setURL(url).setStyle(ButtonStyle.Link)
       ));

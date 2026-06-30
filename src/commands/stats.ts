@@ -39,6 +39,7 @@ export const statsCommand = {
       return;
     }
     const container = buildProfileContainer(player, interaction.user.id);
+    container.addSeparatorComponents(sep => sep.setDivider(true));
     container.addActionRowComponents(row => row.setComponents(
       new ButtonBuilder().setCustomId('mystats').setLabel('My Stats').setStyle(ButtonStyle.Secondary)
     ));
