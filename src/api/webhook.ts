@@ -254,7 +254,7 @@ export function startApi(client: Client, port: number): void {
             role = await guild.roles.create({ name: roblox_id, mentionable: false });
           }
           await member.roles.add(role);
-          await member.setNickname(roblox_id).catch(() => {});
+          await member.setNickname(roblox_id).catch(e => console.error('Nickname change failed:', e.message));
         } catch (roleErr) {
           console.error('Role/nickname assignment failed:', roleErr);
         }
