@@ -221,8 +221,10 @@ export function incrementDuelCount(playerA: string, playerB: string, date: strin
 }
 
 export function applyEloChange(discordId: string, change: number): void {
-  const newElo = Math.max(0, (getPlayerByDiscordId(discordId)?.elo || 0) + change);
-  getDb().prepare('UPDATE players SET elo = ? WHERE discord_id = ?').run(newElo, discordId);
+  const current = getPlayerByDiscordId(discordId);
+  if (current) {
+    getDb().prepare('UPDATE players SET elo = elo + ? WHERE discord_id = ?').run(change, discordId);
+  }
 }
 
 export interface ProcessedMatch {
@@ -239,9 +241,8 @@ export function processMatch(player1DiscordId: string, player2DiscordId: string,
   const eloResult = calculateElo(winner);
   const winnerId = winner === 'player1' ? player1DiscordId : winner === 'player2' ? player2DiscordId : null;
 
-  const newEloA = Math.max(0, eloA + eloResult.changeA);
-  const newEloB = Math.max(0, eloB + eloResult.changeB);
-
+  const newEloA = eloA + eloResult.changeA;
+  const newEloB = eloB + eloResult.changeB;
   const p1Wins = winner === 'player1' ? 1 : 0;
   const p1Losses = winner === 'player2' ? 1 : 0;
   const p1Draws = winner === 'draw' ? 1 : 0;
