@@ -270,7 +270,7 @@ export function startApi(client: Client, port: number): void {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error('OAuth callback error:', message);
-      res.status(500).send('Verification failed. Try running /link again.');
+      res.status(500).send(`Verification failed: ${message}`);
     }
   });
 
