@@ -289,7 +289,14 @@ You can go back to Discord now.`);
     return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Verified</title><style>body{background:#1a1a2e;color:#fff;font-family:sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;text-align:center}.card{background:#2B2D31;padding:2rem;border-radius:12px;max-width:400px}.check{font-size:64px;margin-bottom:1rem}h1{margin:0 0 .5rem}p{color:#aaa;margin:0}</style></head><body><div class="card"><div class="check">✅</div><h1>Verified!</h1><p>Your Discord is now linked to <strong>${roblox_id}</strong>.<br>You can go back to Discord.</p></div></body></html>`;
   }
 
+  app.get('/privacy', (_req, res) => res.send(simplePage('Privacy Policy', 'Elo Bot does not store any personal data beyond what is required for Discord and Roblox integration. Match results, Elo ratings, and linked account IDs are stored for leaderboard functionality. No data is shared with third parties.')));
+  app.get('/terms', (_req, res) => res.send(simplePage('Terms of Service', 'By using Elo Bot, you agree to use it only for its intended purpose of Elo-based PVP matchmaking. Abuse of the bot or its API may result in a permanent ban. This service is provided as-is without warranty.')));
+
   app.listen(port, () => {
     console.log(`Webhook API listening on port ${port}`);
   });
+}
+
+function simplePage(title: string, body: string): string {
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>body{background:#1a1a2e;color:#fff;font-family:sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;padding:2rem;text-align:center}h1{margin:0 0 1rem}p{color:#aaa;max-width:600px;line-height:1.6}</style></head><body><div><h1>${title}</h1><p>${body}</p></div></body></html>`;
 }
