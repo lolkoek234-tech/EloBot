@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 
-const divider = '___';
+const divider = '⎯'.repeat(28);
 
 export const rulesCommand = {
   data: new SlashCommandBuilder()
@@ -11,8 +11,8 @@ export const rulesCommand = {
       .setColor(0x2B2D31)
       .setDescription(`# Rules
 Elo Bot
-___
-
+${divider}
+ 
 **Match Format**
 Best-of-5 | First to 3 wins
 ${divider}

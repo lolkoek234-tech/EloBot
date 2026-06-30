@@ -36,6 +36,8 @@ function winRate(wins: number, losses: number): string {
   return total > 0 ? (wins / total * 100).toFixed(1) : '0.0';
 }
 
+const divider = '⎯'.repeat(28);
+
 export function buildLeaderboardData(filterRegion?: string): { embed: EmbedBuilder; components: ActionRowBuilder<ButtonBuilder>[] } | null {
   const players = filterRegion
     ? getTopPlayersByRegion(filterRegion, 10)
@@ -59,7 +61,7 @@ export function buildLeaderboardData(filterRegion?: string): { embed: EmbedBuild
 
   const embed = new EmbedBuilder()
     .setColor(0x2B2D31)
-    .setDescription(`# ${title}\n${scope}\n___\n\n${lines.join('\n\n')}\n\nUpdated: <t:${unix}:R>`);
+    .setDescription(`# ${title}\n${scope}\n${divider}\n\n${lines.join('\n\n')}\n\nUpdated: <t:${unix}:R>`);
 
   const button = new ButtonBuilder()
     .setCustomId('mystats')

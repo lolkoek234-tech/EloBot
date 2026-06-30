@@ -86,7 +86,7 @@ export async function startBot(token: string, clientId: string, guildId: string)
         const total = player.wins + player.losses;
         const wr = total > 0 ? (player.wins / total * 100).toFixed(1) : '0.0';
         const status = daily?.fight_count && daily.fight_count > 0 ? 'Active' : 'Idle';
-        const divider = '___';
+        const divider = '⎯'.repeat(28);
 
         const embed = new EmbedBuilder()
           .setColor(0x2B2D31)

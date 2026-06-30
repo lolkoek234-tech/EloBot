@@ -2,7 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 import { getPlayerByRobloxId, getDailyStats, getWinStreak } from '../db/queries';
 import { getTier } from '../types';
 
-const divider = '___';
+const divider = '⎯'.repeat(28);
 
 export const profileCommand = {
   data: new SlashCommandBuilder()
