@@ -1,6 +1,6 @@
 import express from 'express';
 import { Client, EmbedBuilder, TextChannel } from 'discord.js';
-import { getOrCreatePlayerByRobloxId, processMatch, getDailyStats, getWinStreak, getTopPlayers, getTopPlayersByRegion } from '../db/queries';
+import { getOrCreatePlayerByRobloxId, processMatch, getDailyStats, getWinStreak, getTopPlayers, getTopPlayersByRegion, consumeVerificationCode, linkPlayer, getPlayerByRobloxId, upgradePlayerDiscordId, getPlayerByDiscordId } from '../db/queries';
 import { determineWinner } from '../elo';
 import { MatchResultInput, Region, getTier } from '../types';
 
@@ -148,6 +148,113 @@ ${flag} **${p2.roblox_id}** ${p2Label}
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error('Webhook error:', message);
+      res.status(500).json({ error: message });
+    }
+  });
+
+  app.post('/api/verify-link', async (req, res) => {
+    try {
+      const secret = process.env.WEBHOOK_SECRET || '';
+      const auth = req.headers['authorization'];
+      if (secret && auth !== `Bearer ${secret}`) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const { code, roblox_id } = req.body as { code?: string; roblox_id?: string };
+      if (!code || !roblox_id) {
+        res.status(400).json({ error: 'Missing code or roblox_id' });
+        return;
+      }
+
+      const robloxRegex = /^[a-zA-Z0-9_]{3,20}$/;
+      if (!robloxRegex.test(roblox_id)) {
+        res.status(400).json({ error: 'Invalid Roblox username' });
+        return;
+      }
+
+      const discordId = consumeVerificationCode(code.toUpperCase());
+      if (!discordId) {
+        res.status(400).json({ error: 'Invalid or expired verification code. Run /link again in Discord.' });
+        return;
+      }
+
+      const existingByRoblox = getPlayerByRobloxId(roblox_id);
+      if (existingByRoblox && !existingByRoblox.discord_id.startsWith('rbx_') && existingByRoblox.discord_id !== discordId) {
+        res.status(400).json({ error: 'This Roblox account is already linked to another Discord user.' });
+        return;
+      }
+
+      if (existingByRoblox && existingByRoblox.discord_id === discordId) {
+        res.json({ success: true, linked: true, roblox_id });
+        return;
+      }
+
+      const oldPlayer = getPlayerByDiscordId(discordId);
+      const oldRobloxId = oldPlayer?.roblox_id;
+
+      if (existingByRoblox && existingByRoblox.discord_id.startsWith('rbx_')) {
+        upgradePlayerDiscordId(existingByRoblox.discord_id, discordId, roblox_id);
+      } else {
+        linkPlayer(discordId, roblox_id);
+      }
+
+      const guildId = process.env.GUILD_ID;
+      const guild = guildId ? client.guilds.cache.get(guildId) || await client.guilds.fetch(guildId).catch(() => null) : null;
+      if (guild) {
+        try {
+          const member = await guild.members.fetch(discordId);
+
+          if (oldRobloxId && oldRobloxId !== roblox_id) {
+            const oldRole = guild.roles.cache.find(r => r.name === oldRobloxId);
+            if (oldRole) {
+              await member.roles.remove(oldRole).catch(() => {});
+              if (oldRole.members.size === 0) {
+                await oldRole.delete().catch(() => {});
+              }
+            }
+          }
+
+          const existingRoles = member.roles.cache.filter(r => r.name.startsWith('rbx_')).map(r => r.id);
+          for (const roleId of existingRoles) {
+            await member.roles.remove(roleId).catch(() => {});
+          }
+
+          let role = guild.roles.cache.find(r => r.name === roblox_id);
+          if (!role) {
+            role = await guild.roles.create({
+              name: roblox_id,
+              mentionable: false,
+            });
+          } else if (role.members.size === 0) {
+            // role exists but was orphaned, re-use it
+          }
+          await member.roles.add(role);
+          await member.setNickname(roblox_id).catch(() => {});
+        } catch (roleErr) {
+          console.error('Role/nickname assignment failed:', roleErr);
+        }
+      }
+
+      try {
+        const user = await client.users.fetch(discordId);
+        const dmEmbed = new EmbedBuilder()
+          .setColor(0x2B2D31)
+          .setDescription(`# Verified
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+Your Discord account has been linked to **${roblox_id}**.
+
+You can now use all Elo Bot commands.`);
+        await user.send({ embeds: [dmEmbed] }).catch(() => {});
+      } catch {
+        // DM fails if user has DMs closed, that's fine
+      }
+
+      res.json({ success: true, linked: true, roblox_id });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('Verify-link error:', message);
       res.status(500).json({ error: message });
     }
   });

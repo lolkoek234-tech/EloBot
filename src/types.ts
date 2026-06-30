@@ -46,6 +46,12 @@ export function getTier(elo: number): Tier {
 
 export type Region = 'eu' | 'na' | 'asia' | 'global';
 
+export interface VerificationCode {
+  code: string;
+  discord_id: string;
+  expires_at: string;
+}
+
 export interface MatchResultInput {
   player1_roblox: string;
   player2_roblox: string;

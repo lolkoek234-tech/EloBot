@@ -1,48 +1,29 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import { linkPlayer, getPlayerByRobloxId, upgradePlayerDiscordId } from '../db/queries';
+import { generateVerificationCode } from '../db/queries';
 
 export const linkCommand = {
   data: new SlashCommandBuilder()
     .setName('link')
-    .setDescription('Link your Roblox account to Discord')
-    .addStringOption(option =>
-      option.setName('roblox_username')
-        .setDescription('Your Roblox username')
-        .setRequired(true)
-    ),
+    .setDescription('Verify your Roblox account to link it to Discord'),
   async execute(interaction: any) {
-    const robloxUsername = interaction.options.getString('roblox_username', true);
-
-    const robloxRegex = /^[a-zA-Z0-9_]{3,20}$/;
-    if (!robloxRegex.test(robloxUsername)) {
-      await interaction.reply({ content: 'Invalid Roblox username.', ephemeral: true });
-      return;
-    }
-
-    const existing = getPlayerByRobloxId(robloxUsername);
-    if (existing) {
-      if (existing.discord_id === interaction.user.id) {
-        await interaction.reply({ content: 'Already linked to your Discord.', ephemeral: true });
-        return;
-      }
-      if (existing.discord_id.startsWith('rbx_')) {
-        upgradePlayerDiscordId(existing.discord_id, interaction.user.id, robloxUsername);
-        const embed = new EmbedBuilder()
-          .setColor(0x2B2D31)
-          .setDescription(`Linked to **${robloxUsername}**`);
-        await interaction.reply({ embeds: [embed] });
-        return;
-      }
-      await interaction.reply({ content: 'Already linked to another Discord user.', ephemeral: true });
-      return;
-    }
-
-    linkPlayer(interaction.user.id, robloxUsername);
+    const code = generateVerificationCode(interaction.user.id);
 
     const embed = new EmbedBuilder()
       .setColor(0x2B2D31)
-      .setDescription(`Linked to **${robloxUsername}**`);
+      .setDescription(`# Link Your Account
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
 
-    await interaction.reply({ embeds: [embed] });
+**Step 1:** Join the Elo Bot Roblox game
+**Step 2:** Open the Verification panel and enter this code:
+
+# \`${code}\`
+
+**Step 3:** Type your Roblox username and press Verify
+
+Your Discord account will be automatically linked and you will receive a role with your Roblox name.
+
+-# Code expires in 5 minutes`);
+
+    await interaction.reply({ embeds: [embed], ephemeral: true });
   },
 };

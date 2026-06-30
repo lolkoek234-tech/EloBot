@@ -60,6 +60,12 @@ function initTables(): void {
       FOREIGN KEY (discord_id) REFERENCES players(discord_id)
     );
 
+    CREATE TABLE IF NOT EXISTS verification_codes (
+      code TEXT PRIMARY KEY,
+      discord_id TEXT NOT NULL,
+      expires_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS duel_history (
       player1_id TEXT NOT NULL,
       player2_id TEXT NOT NULL,
