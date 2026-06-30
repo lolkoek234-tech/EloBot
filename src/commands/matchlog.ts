@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { getRecentMatches, getPlayerByRobloxId } from '../db/queries';
 
 export const matchlogCommand = {
@@ -40,6 +40,13 @@ export const matchlogCommand = {
       .setColor(0x2B2D31)
       .setDescription(lines.join('\n\n'));
 
-    await interaction.reply({ embeds: [embed] });
+    const button = new ButtonBuilder()
+      .setCustomId('mystats')
+      .setLabel('My Stats')
+      .setStyle(ButtonStyle.Secondary);
+
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   },
 };

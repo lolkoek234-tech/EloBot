@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { getPlayerByRobloxId, getDailyStats, getWinStreak } from '../db/queries';
 import { getTier } from '../types';
 
@@ -35,6 +35,13 @@ ${player.elo} ELO | ${player.wins}W/${player.losses}L | ${wr}% WR | Streak ${str
 ${divider}
 Updated: <t:${unix}:R>`);
 
-    await interaction.reply({ embeds: [embed] });
+    const button = new ButtonBuilder()
+      .setCustomId('mystats')
+      .setLabel('My Stats')
+      .setStyle(ButtonStyle.Secondary);
+
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
+
+    await interaction.reply({ embeds: [embed], components: [row] });
   },
 };
