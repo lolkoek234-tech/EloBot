@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { createOAuthState } from '../db/queries';
 import crypto from 'crypto';
 
@@ -30,14 +30,17 @@ export const linkCommand = {
       .setDescription(`# Link Your Account
 -# ────────────────────────────────────────
 
-Click the link below to verify with Roblox:
-
-${url}
-
-Roblox will ask you to confirm — just click **Authorize**.
+Roblox will ask you to confirm — just click the button below and hit **Authorize**.
 
 You'll get a DM here when you're verified.`);
 
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    const button = new ButtonBuilder()
+      .setLabel('Verify with Roblox')
+      .setURL(url)
+      .setStyle(ButtonStyle.Link);
+
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
+
+    await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
   },
 };
