@@ -37,6 +37,29 @@ export function getTopPlayers(limit: number = 10): Player[] {
   return getDb().prepare('SELECT * FROM players ORDER BY elo DESC LIMIT ?').all(limit) as unknown as Player[];
 }
 
+export function getWinStreak(discordId: string): number {
+  const rows = getDb().prepare(
+    'SELECT score1, score2, player1_id FROM matches WHERE player1_id = ? OR player2_id = ? ORDER BY fought_at DESC LIMIT 20'
+  ).all(discordId, discordId) as { score1: number; score2: number; player1_id: string }[];
+  if (rows.length === 0) return 0;
+  let streak = 0;
+  for (const row of rows) {
+    const isP1 = row.player1_id === discordId;
+    const myScore = isP1 ? row.score1 : row.score2;
+    const oppScore = isP1 ? row.score2 : row.score1;
+    if (myScore > oppScore) {
+      if (streak >= 0) streak++;
+      else break;
+    } else if (myScore < oppScore) {
+      if (streak <= 0) streak--;
+      else break;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
 export function getRecentMatches(discordId: string, limit: number = 10): Match[] {
   return getDb().prepare(
     'SELECT * FROM matches WHERE player1_id = ? OR player2_id = ? ORDER BY fought_at DESC LIMIT ?'
@@ -114,7 +137,7 @@ export interface ProcessedMatch {
   newEloB: number;
 }
 
-export function processMatch(player1DiscordId: string, player2DiscordId: string, eloA: number, eloB: number, score1: number, score2: number): ProcessedMatch {
+export function processMatch(player1DiscordId: string, player2DiscordId: string, eloA: number, eloB: number, score1: number, score2: number, region: string = ''): ProcessedMatch {
   const db = getDb();
   const winner = determineWinner(score1, score2);
   const eloResult = calculateElo(winner);
@@ -132,13 +155,13 @@ export function processMatch(player1DiscordId: string, player2DiscordId: string,
 
   db.exec('BEGIN');
   try {
-    db.prepare('UPDATE players SET elo = ?, wins = wins + ?, losses = losses + ?, draws = draws + ?, total_matches = total_matches + 1 WHERE discord_id = ?')
-      .run(newEloA, p1Wins, p1Losses, p1Draws, player1DiscordId);
-    db.prepare('UPDATE players SET elo = ?, wins = wins + ?, losses = losses + ?, draws = draws + ?, total_matches = total_matches + 1 WHERE discord_id = ?')
-      .run(newEloB, p2Wins, p2Losses, p2Draws, player2DiscordId);
+    db.prepare('UPDATE players SET elo = ?, region = ?, wins = wins + ?, losses = losses + ?, draws = draws + ?, total_matches = total_matches + 1 WHERE discord_id = ?')
+      .run(newEloA, region, p1Wins, p1Losses, p1Draws, player1DiscordId);
+    db.prepare('UPDATE players SET elo = ?, region = ?, wins = wins + ?, losses = losses + ?, draws = draws + ?, total_matches = total_matches + 1 WHERE discord_id = ?')
+      .run(newEloB, region, p2Wins, p2Losses, p2Draws, player2DiscordId);
 
-    db.prepare('INSERT INTO matches (player1_id, player2_id, score1, score2, winner_id, elo_change1, elo_change2) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(player1DiscordId, player2DiscordId, score1, score2, winnerId, eloResult.changeA, eloResult.changeB);
+    db.prepare('INSERT INTO matches (player1_id, player2_id, score1, score2, winner_id, elo_change1, elo_change2, region) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(player1DiscordId, player2DiscordId, score1, score2, winnerId, eloResult.changeA, eloResult.changeB, region);
 
     const today = new Date().toISOString().split('T')[0];
     for (const id of [player1DiscordId, player2DiscordId]) {

@@ -13,8 +13,14 @@ export function getDb(): DatabaseSync {
     db.exec('PRAGMA journal_mode = WAL');
     db.exec('PRAGMA foreign_keys = ON');
     initTables();
+    migrate();
   }
   return db;
+}
+
+function migrate(): void {
+  try { db.exec("ALTER TABLE players ADD COLUMN region TEXT NOT NULL DEFAULT ''"); } catch (e) {}
+  try { db.exec("ALTER TABLE matches ADD COLUMN region TEXT NOT NULL DEFAULT ''"); } catch (e) {}
 }
 
 function initTables(): void {
@@ -27,6 +33,7 @@ function initTables(): void {
       losses INTEGER NOT NULL DEFAULT 0,
       draws INTEGER NOT NULL DEFAULT 0,
       total_matches INTEGER NOT NULL DEFAULT 0,
+      region TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -39,6 +46,7 @@ function initTables(): void {
       winner_id TEXT,
       elo_change1 INTEGER NOT NULL,
       elo_change2 INTEGER NOT NULL,
+      region TEXT NOT NULL DEFAULT '',
       fought_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (player1_id) REFERENCES players(discord_id),
       FOREIGN KEY (player2_id) REFERENCES players(discord_id)

@@ -71,7 +71,7 @@ export function startApi(client: Client, port: number): void {
       const player1 = getOrCreatePlayerByRobloxId(player1_roblox);
       const player2 = getOrCreatePlayerByRobloxId(player2_roblox);
 
-      const result = processMatch(player1.discord_id, player2.discord_id, player1.elo, player2.elo, score1, score2);
+      const result = processMatch(player1.discord_id, player2.discord_id, player1.elo, player2.elo, score1, score2, region || '');
       const winner = determineWinner(score1, score2);
 
       const p1 = getOrCreatePlayerByRobloxId(player1_roblox);

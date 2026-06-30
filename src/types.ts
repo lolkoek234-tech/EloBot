@@ -6,6 +6,7 @@ export interface Player {
   losses: number;
   draws: number;
   total_matches: number;
+  region: string;
   created_at: string;
 }
 
@@ -18,6 +19,7 @@ export interface Match {
   winner_id: string | null;
   elo_change1: number;
   elo_change2: number;
+  region: string;
   fought_at: string;
 }
 
