@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, REST, Routes, ContainerBuilder, TextDisplayBuilder, MessageFlags } from 'discord.js';
+import { Client, GatewayIntentBits, REST, Routes, MessageFlags } from 'discord.js';
 import { linkCommand } from './commands/link';
 import { profileCommand } from './commands/profile';
 import { leaderboardCommand } from './commands/leaderboard_cmd';
@@ -10,8 +10,10 @@ import { euCommand } from './commands/eu';
 import { naCommand } from './commands/na';
 import { asiaCommand } from './commands/asia';
 import { rulesCommand } from './commands/rules';
+import { statsCommand } from './commands/stats';
 import { buildLeaderboardData, getTrackedMessages } from './commands/leaderboard';
-import { getPlayerByDiscordId, getWinStreak, getHighestStreak, getPlayerRank, getDailyStats } from './db/queries';
+import { getPlayerByDiscordId } from './db/queries';
+import { buildProfileContainer } from './commands/stats';
 
 const commands = [
   linkCommand,
@@ -25,6 +27,7 @@ const commands = [
   naCommand,
   asiaCommand,
   rulesCommand,
+  statsCommand,
 ];
 
 export async function startBot(token: string, clientId: string, guildId: string): Promise<Client> {
@@ -56,6 +59,7 @@ export async function startBot(token: string, clientId: string, guildId: string)
         'na': naCommand.execute,
         'asia': asiaCommand.execute,
         'rules': rulesCommand.execute,
+        'stats': statsCommand.execute,
       };
 
       const handler = commandMap[interaction.commandName];
@@ -78,23 +82,7 @@ export async function startBot(token: string, clientId: string, guildId: string)
           return;
         }
 
-        const streak = getWinStreak(player.discord_id);
-        const highestStreak = getHighestStreak(player.discord_id);
-        const rank = getPlayerRank(player.discord_id);
-        const today = new Date().toISOString().split('T')[0];
-        const daily = getDailyStats(player.discord_id, today);
-        const total = player.wins + player.losses;
-        const wr = total > 0 ? (player.wins / total * 100).toFixed(1) : '0.0';
-        const status = daily?.fight_count && daily.fight_count > 0 ? 'Active' : 'Idle';
-
-        const container = new ContainerBuilder()
-          .setAccentColor(0x2B2D31)
-          .addTextDisplayComponents(td => td.setContent(`Personal Stats\n<@${interaction.user.id}>`))
-          .addSeparatorComponents(sep => sep.setDivider(true))
-          .addTextDisplayComponents(td => td.setContent(
-            `ELO · ${player.elo}\nGlobal Rank · #${rank}\nRecord · ${player.wins}W / ${player.losses}L\nWin Rate · ${wr}%\nCurrent Streak · ${streak}\nHighest Streak · ${highestStreak}\nMatches Played · ${player.total_matches}\nStatus · ${status}`
-          ));
-
+        const container = buildProfileContainer(player, interaction.user.id);
         await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2, ephemeral: true });
       } catch (error) {
         console.error('My Stats button error:', error);
