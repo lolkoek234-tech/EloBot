@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
 
-const divider = '\u{2501}'.repeat(24);
+const divider = '___';
 
 export const rulesCommand = {
   data: new SlashCommandBuilder()

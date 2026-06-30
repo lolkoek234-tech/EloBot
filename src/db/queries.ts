@@ -71,6 +71,33 @@ export function getWinStreak(discordId: string): number {
   return streak;
 }
 
+export function getPlayerRank(discordId: string): number {
+  const row = getDb().prepare(
+    'SELECT COUNT(*) as rank FROM players WHERE elo > (SELECT elo FROM players WHERE discord_id = ?)'
+  ).get(discordId) as { rank: number };
+  return row.rank + 1;
+}
+
+export function getHighestStreak(discordId: string): number {
+  const rows = getDb().prepare(
+    'SELECT score1, score2, player1_id FROM matches WHERE player1_id = ? OR player2_id = ? ORDER BY fought_at ASC'
+  ).all(discordId, discordId) as { score1: number; score2: number; player1_id: string }[];
+  let maxStreak = 0;
+  let current = 0;
+  for (const row of rows) {
+    const isP1 = row.player1_id === discordId;
+    const myScore = isP1 ? row.score1 : row.score2;
+    const oppScore = isP1 ? row.score2 : row.score1;
+    if (myScore > oppScore) {
+      current++;
+      maxStreak = Math.max(maxStreak, current);
+    } else {
+      current = 0;
+    }
+  }
+  return maxStreak;
+}
+
 export function getRecentMatches(discordId: string, limit: number = 10): Match[] {
   return getDb().prepare(
     'SELECT * FROM matches WHERE player1_id = ? OR player2_id = ? ORDER BY fought_at DESC LIMIT ?'
