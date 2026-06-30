@@ -1,6 +1,6 @@
 import express from 'express';
 import { Client, EmbedBuilder, TextChannel } from 'discord.js';
-import { getOrCreatePlayerByRobloxId, processMatch, getDailyStats, getWinStreak } from '../db/queries';
+import { getOrCreatePlayerByRobloxId, processMatch, getDailyStats, getWinStreak, getTopPlayers, getTopPlayersByRegion } from '../db/queries';
 import { determineWinner } from '../elo';
 import { MatchResultInput, Region, getTier } from '../types';
 
@@ -34,6 +34,27 @@ export function startApi(client: Client, port: number): void {
   app.use(express.json({ limit: '10kb' }));
 
   setInterval(() => recentMatches.clear(), 10000);
+
+  app.get('/api/leaderboard', (req, res) => {
+    try {
+      const region = req.query.region as string | undefined;
+      const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
+      const players = region ? getTopPlayersByRegion(region, limit) : getTopPlayers(limit);
+      res.json({
+        players: players.map(p => ({
+          roblox_id: p.roblox_id,
+          elo: p.elo,
+          wins: p.wins,
+          losses: p.losses,
+          total_matches: p.total_matches,
+          region: p.region,
+        })),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ error: message });
+    }
+  });
 
   app.post('/api/match-result', async (req, res) => {
     try {
