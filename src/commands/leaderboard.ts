@@ -14,12 +14,12 @@ export const leaderboardCommand = {
     }
 
     const lines = players.map((p, i) =>
-      `${i + 1}. ${p.roblox_id} - ${p.elo} Elo (${p.wins}-${p.losses}-${p.draws})`
+      `**#${i + 1}** **${p.roblox_id}**\n-# ELO: **${p.elo}** · ${p.wins}W-${p.losses}L-${p.draws}D`
     );
 
     const embed = new EmbedBuilder()
       .setColor(0x2B2D31)
-      .setDescription(lines.join('\n'));
+      .setDescription(lines.join('\n\n'));
 
     await interaction.reply({ embeds: [embed], allowedMentions: { parse: [] } });
   },

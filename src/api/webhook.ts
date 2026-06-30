@@ -13,6 +13,16 @@ function getRegionChannels(): Record<string, string> {
   };
 }
 
+function regionFlag(region?: string): string {
+  switch (region) {
+    case 'eu': return '\u{1F1EA}\u{1F1FA}';
+    case 'na': return '\u{1F30E}';
+    case 'asia': return '\u{1F30F}';
+    case 'global': return '\u{1F30D}';
+    default: return '';
+  }
+}
+
 const recentMatches = new Set<string>();
 
 function matchKey(p1: string, p2: string, s1: number, s2: number): string {
@@ -86,19 +96,19 @@ export function startApi(client: Client, port: number): void {
           const p1Tier = getTier(result.newEloA);
           const p2Tier = getTier(result.newEloB);
 
+          const flag = regionFlag(region);
+
           const embed = new EmbedBuilder()
             .setColor(0x2B2D31)
-            .setDescription(`${p1.roblox_id}   (${p1Record}) ${p1Label}
-Elo = ${result.newEloA} | ${p1Tier}
-Times Fought Today: ${p1Daily?.fight_count || 1}
-Scoreboard: ${score1}-${score2}
-Opponent: ${p2.roblox_id}
------------------------------
-${p2.roblox_id}   (${p2Record}) ${p2Label}
-Elo = ${result.newEloB} | ${p2Tier}
-Times Fought Today: ${p2Daily?.fight_count || 1}
-Scoreboard: ${score2}-${score1}
-Opponent: ${p1.roblox_id}`);
+            .setDescription(`${flag} **${p1.roblox_id}** ${p1Label}
+-# ELO: **${result.newEloA}** | ${p1Tier} · Record: ${p1Record} · Fights Today: **${p1Daily?.fight_count || 1}** · Scoreboard: **${score1}-${score2}**
+-# Opponent: ${p2.roblox_id}
+
+\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}
+
+${flag} **${p2.roblox_id}** ${p2Label}
+-# ELO: **${result.newEloB}** | ${p2Tier} · Record: ${p2Record} · Fights Today: **${p2Daily?.fight_count || 1}** · Scoreboard: **${score2}-${score1}**
+-# Opponent: ${p1.roblox_id}`);
 
           await channel.send({ embeds: [embed], allowedMentions: { parse: [] } });
         }

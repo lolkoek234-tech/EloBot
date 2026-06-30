@@ -32,12 +32,13 @@ export const matchlogCommand = {
       const oppScore = isPlayer1 ? m.score2 : m.score1;
       const eloChange = isPlayer1 ? m.elo_change1 : m.elo_change2;
       const result = myScore > oppScore ? 'Win' : myScore < oppScore ? 'Loss' : 'Draw';
-      return `#${i + 1} ${result} ${myScore}-${oppScore} (${eloChange > 0 ? '+' : ''}${eloChange} Elo)`;
+      const sign = eloChange > 0 ? '+' : '';
+      return `**#${i + 1}** **${result}** ${myScore}-${oppScore}\n-# ${sign}${eloChange} ELO`;
     });
 
     const embed = new EmbedBuilder()
       .setColor(0x2B2D31)
-      .setDescription(lines.join('\n'));
+      .setDescription(lines.join('\n\n'));
 
     await interaction.reply({ embeds: [embed] });
   },

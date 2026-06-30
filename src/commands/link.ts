@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import { linkPlayer, getPlayerByRobloxId } from '../db/queries';
+import { linkPlayer, getPlayerByRobloxId, upgradePlayerDiscordId } from '../db/queries';
 
 export const linkCommand = {
   data: new SlashCommandBuilder()
@@ -23,9 +23,17 @@ export const linkCommand = {
     if (existing) {
       if (existing.discord_id === interaction.user.id) {
         await interaction.reply({ content: 'Already linked to your Discord.', ephemeral: true });
-      } else if (!existing.discord_id.startsWith('rbx_')) {
-        await interaction.reply({ content: 'Already linked to another Discord user.', ephemeral: true });
+        return;
       }
+      if (existing.discord_id.startsWith('rbx_')) {
+        upgradePlayerDiscordId(existing.discord_id, interaction.user.id, robloxUsername);
+        const embed = new EmbedBuilder()
+          .setColor(0x2B2D31)
+          .setDescription(`Linked to **${robloxUsername}**`);
+        await interaction.reply({ embeds: [embed] });
+        return;
+      }
+      await interaction.reply({ content: 'Already linked to another Discord user.', ephemeral: true });
       return;
     }
 
