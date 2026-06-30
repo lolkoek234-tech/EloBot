@@ -229,6 +229,7 @@ export function startApi(client: Client, port: number): void {
       }
 
       const guildId = process.env.GUILD_ID;
+      let isOwner = false;
       if (!guildId) {
         console.error('GUILD_ID not set, skipping role/nickname');
       } else {
@@ -236,6 +237,7 @@ export function startApi(client: Client, port: number): void {
         if (guild) {
           try {
             const member = await guild.members.fetch(discordId);
+            isOwner = member.id === guild.ownerId;
 
             // remove old role if re-linking
             if (oldRobloxId && oldRobloxId !== roblox_id) {
@@ -257,7 +259,7 @@ export function startApi(client: Client, port: number): void {
             await member.roles.add(role);
 
             // set nickname (skipped for server owner — Discord restriction)
-            if (member.id === guild.ownerId) {
+            if (isOwner) {
               console.log(`Skipping nickname for server owner ${discordId}`);
             } else {
               await member.setNickname(roblox_id);
@@ -271,7 +273,8 @@ export function startApi(client: Client, port: number): void {
 
       try {
         const user = await client.users.fetch(discordId);
-        const dmBody = `Your Discord has been linked to **${roblox_id}**.\n\nYou can go back to Discord now.${member && member.id === guild?.ownerId ? '\n\n> **Note:** You are the server owner, so I cannot change your nickname automatically. Please set it manually to your Roblox username in Server Settings.' : ''}`;
+        const dmNote = isOwner ? '\n\n> **Note:** You are the server owner, so I cannot change your nickname automatically. Please set it manually to your Roblox username in Server Settings.' : '';
+        const dmBody = `Your Discord has been linked to **${roblox_id}**.\n\nYou can go back to Discord now.${dmNote}`;
         const dmContainer = new ContainerBuilder()
           .setAccentColor(0x2B2D31)
           .addTextDisplayComponents(td => td.setContent(`# You're Verified!`))
