@@ -36,7 +36,7 @@ function winRate(wins: number, losses: number): string {
   return total > 0 ? (wins / total * 100).toFixed(1) : '0.0';
 }
 
-const divider = '⎯'.repeat(28);
+const divider = '-# ' + '─'.repeat(40);
 
 export function buildLeaderboardData(filterRegion?: string): { embed: EmbedBuilder; components: ActionRowBuilder<ButtonBuilder>[] } | null {
   const players = filterRegion

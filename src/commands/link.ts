@@ -28,7 +28,7 @@ export const linkCommand = {
     const embed = new EmbedBuilder()
       .setColor(0x2B2D31)
       .setDescription(`# Link Your Account
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+-# ────────────────────────────────────────
 
 Click the link below to verify with Roblox:
 

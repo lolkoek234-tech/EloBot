@@ -129,8 +129,8 @@ export function startApi(client: Client, port: number): void {
 -# ${result.newEloA} ELO | ${p1Tier} | ${p1.wins}W/${p1.losses}L | ${p1Wr}% WR | Streak ${p1Streak} | Fights Today: ${p1Daily?.fight_count || 1} | Scoreboard: ${score1}-${score2}
 -# Opponent: ${p2.roblox_id}
 
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-
+      -# ────────────────────────────────────────
+ 
 ${flag} **${p2.roblox_id}** ${p2Label}
 -# ${result.newEloB} ELO | ${p2Tier} | ${p2.wins}W/${p2.losses}L | ${p2Wr}% WR | Streak ${p2Streak} | Fights Today: ${p2Daily?.fight_count || 1} | Scoreboard: ${score2}-${score1}
 -# Opponent: ${p1.roblox_id}`);
@@ -267,7 +267,7 @@ ${flag} **${p2.roblox_id}** ${p2Label}
         const dmEmbed = new EmbedBuilder()
           .setColor(0x2B2D31)
           .setDescription(`# You're Verified!
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+-# ────────────────────────────────────────
 
 Your Discord has been linked to **${roblox_id}**.
 
