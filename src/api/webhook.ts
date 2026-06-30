@@ -87,8 +87,8 @@ export function startApi(client: Client, port: number): void {
           const p1Daily = getDailyStats(p1.discord_id, today);
           const p2Daily = getDailyStats(p2.discord_id, today);
 
-          const p1Record = `${p1.wins}-${p1.losses}-${p1.draws}`;
-          const p2Record = `${p2.wins}-${p2.losses}-${p2.draws}`;
+          const p1Record = `${p1.wins}W/${p1.losses}L`;
+          const p2Record = `${p2.wins}W/${p2.losses}L`;
 
           const p1Label = winner === 'player1' ? 'WINNER' : winner === 'draw' ? 'DRAW' : 'LOSER';
           const p2Label = winner === 'player2' ? 'WINNER' : winner === 'draw' ? 'DRAW' : 'LOSER';
@@ -101,13 +101,13 @@ export function startApi(client: Client, port: number): void {
           const embed = new EmbedBuilder()
             .setColor(0x2B2D31)
             .setDescription(`${flag} **${p1.roblox_id}** ${p1Label}
--# ELO: **${result.newEloA}** | ${p1Tier} · Record: ${p1Record} · Fights Today: **${p1Daily?.fight_count || 1}** · Scoreboard: **${score1}-${score2}**
+-# ELO: **${result.newEloA}** | ${p1Tier} | Record: ${p1Record} | Fights Today: **${p1Daily?.fight_count || 1}** | Scoreboard: **${score1}-${score2}**
 -# Opponent: ${p2.roblox_id}
 
 \u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}
 
 ${flag} **${p2.roblox_id}** ${p2Label}
--# ELO: **${result.newEloB}** | ${p2Tier} · Record: ${p2Record} · Fights Today: **${p2Daily?.fight_count || 1}** · Scoreboard: **${score2}-${score1}**
+-# ELO: **${result.newEloB}** | ${p2Tier} | Record: ${p2Record} | Fights Today: **${p2Daily?.fight_count || 1}** | Scoreboard: **${score2}-${score1}**
 -# Opponent: ${p1.roblox_id}`);
 
           await channel.send({ embeds: [embed], allowedMentions: { parse: [] } });

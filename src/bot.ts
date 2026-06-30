@@ -1,10 +1,15 @@
 import { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } from 'discord.js';
 import { linkCommand } from './commands/link';
 import { profileCommand } from './commands/profile';
-import { leaderboardCommand } from './commands/leaderboard';
+import { leaderboardCommand } from './commands/leaderboard_cmd';
 import { matchlogCommand } from './commands/matchlog';
 import { helpCommand } from './commands/help';
 import { verifyCommand } from './commands/verify';
+import { globalCommand } from './commands/global';
+import { euCommand } from './commands/eu';
+import { naCommand } from './commands/na';
+import { asiaCommand } from './commands/asia';
+import { rulesCommand } from './commands/rules';
 
 const commands = [
   linkCommand,
@@ -13,6 +18,11 @@ const commands = [
   matchlogCommand,
   helpCommand,
   verifyCommand,
+  globalCommand,
+  euCommand,
+  naCommand,
+  asiaCommand,
+  rulesCommand,
 ];
 
 export async function startBot(token: string, clientId: string, guildId: string): Promise<Client> {
@@ -40,6 +50,11 @@ export async function startBot(token: string, clientId: string, guildId: string)
       'matchlog': matchlogCommand.execute,
       'help': helpCommand.execute,
       'verify': verifyCommand.execute,
+      'global': globalCommand.execute,
+      'eu': euCommand.execute,
+      'na': naCommand.execute,
+      'asia': asiaCommand.execute,
+      'rules': rulesCommand.execute,
     };
 
     const handler = commandMap[interaction.commandName];

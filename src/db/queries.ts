@@ -37,6 +37,17 @@ export function getTopPlayers(limit: number = 10): Player[] {
   return getDb().prepare('SELECT * FROM players ORDER BY elo DESC LIMIT ?').all(limit) as unknown as Player[];
 }
 
+export function getTopPlayersByRegion(region: string, limit: number = 10): Player[] {
+  return getDb().prepare(
+    'SELECT * FROM players WHERE region = ? ORDER BY elo DESC LIMIT ?'
+  ).all(region, limit) as unknown as Player[];
+}
+
+export function getPlayerCountByRegion(region: string): number {
+  const row = getDb().prepare('SELECT COUNT(*) as count FROM players WHERE region = ?').get(region) as { count: number };
+  return row.count;
+}
+
 export function getWinStreak(discordId: string): number {
   const rows = getDb().prepare(
     'SELECT score1, score2, player1_id FROM matches WHERE player1_id = ? OR player2_id = ? ORDER BY fought_at DESC LIMIT 20'

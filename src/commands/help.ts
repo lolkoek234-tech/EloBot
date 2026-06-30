@@ -9,8 +9,13 @@ export const helpCommand = {
       .setColor(0x2B2D31)
       .setDescription(`**/link** <roblox_username> - Link your Discord to your Roblox account
 **/profile** <roblox_username> - View Elo, record, and daily fights
-**/leaderboard** - Top 10 players by Elo
+**/leaderboard** - Global top 10
+**/global** - Global leaderboard
+**/eu** - Europe leaderboard
+**/na** - North America leaderboard
+**/asia** - Asia leaderboard
 **/matchlog** <roblox_username> - Recent match history
+**/rules** - Match rules and penalties
 **/verify** - Check your linked Roblox account
 **/help** - Show this message`);
 

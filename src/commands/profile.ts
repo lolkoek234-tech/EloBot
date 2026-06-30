@@ -28,7 +28,7 @@ export const profileCommand = {
     const embed = new EmbedBuilder()
       .setColor(0x2B2D31)
       .setDescription(`**${player.roblox_id}**
--# Tier: **${tier}** · ELO: **${player.elo}** · Record: **${player.wins}W-${player.losses}L-${player.draws}D** · Fights Today: **${fightsToday}**`);
+-# Tier: **${tier}** | ELO: **${player.elo}** | Record: **${player.wins}W/${player.losses}L** | Fights Today: **${fightsToday}**`);
 
     await interaction.reply({ embeds: [embed] });
   },
