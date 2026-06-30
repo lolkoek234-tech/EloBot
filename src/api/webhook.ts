@@ -256,9 +256,13 @@ export function startApi(client: Client, port: number): void {
             if (!role) role = await guild.roles.create({ name: roblox_id, mentionable: false });
             await member.roles.add(role);
 
-            // set nickname
-            await member.setNickname(roblox_id);
-            console.log(`Nickname set to ${roblox_id} for ${discordId}`);
+            // set nickname (skipped for server owner — Discord restriction)
+            if (member.id === guild.ownerId) {
+              console.log(`Skipping nickname for server owner ${discordId}`);
+            } else {
+              await member.setNickname(roblox_id);
+              console.log(`Nickname set to ${roblox_id} for ${discordId}`);
+            }
           } catch (roleErr: any) {
             console.error('Nickname/role error:', roleErr.message);
           }
@@ -267,13 +271,12 @@ export function startApi(client: Client, port: number): void {
 
       try {
         const user = await client.users.fetch(discordId);
+        const dmBody = `Your Discord has been linked to **${roblox_id}**.\n\nYou can go back to Discord now.${member && member.id === guild?.ownerId ? '\n\n> **Note:** You are the server owner, so I cannot change your nickname automatically. Please set it manually to your Roblox username in Server Settings.' : ''}`;
         const dmContainer = new ContainerBuilder()
           .setAccentColor(0x2B2D31)
           .addTextDisplayComponents(td => td.setContent(`# You're Verified!`))
           .addSeparatorComponents(sep => sep.setDivider(true))
-          .addTextDisplayComponents(td => td.setContent(
-            `Your Discord has been linked to **${roblox_id}**.\n\nYou can go back to Discord now.`
-          ));
+          .addTextDisplayComponents(td => td.setContent(dmBody));
         await user.send({ components: [dmContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
       } catch {
         // DM fails if user has DMs closed, that's fine
