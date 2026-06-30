@@ -1,6 +1,8 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import { getPlayerByRobloxId, getDailyStats } from '../db/queries';
+import { getPlayerByRobloxId, getDailyStats, getWinStreak } from '../db/queries';
 import { getTier } from '../types';
+
+const divider = '\u{2501}'.repeat(24);
 
 export const profileCommand = {
   data: new SlashCommandBuilder()
@@ -20,15 +22,18 @@ export const profileCommand = {
       return;
     }
 
-    const today = new Date().toISOString().split('T')[0];
-    const dailyStats = getDailyStats(player.discord_id, today);
-    const fightsToday = dailyStats?.fight_count || 0;
-    const tier = getTier(player.elo);
+    const streak = getWinStreak(player.discord_id);
+    const total = player.wins + player.losses;
+    const wr = total > 0 ? (player.wins / total * 100).toFixed(1) : '0.0';
+    const unix = Math.floor(Date.now() / 1000);
 
     const embed = new EmbedBuilder()
       .setColor(0x2B2D31)
-      .setDescription(`**${player.roblox_id}**
--# Tier: **${tier}** | ELO: **${player.elo}** | Record: **${player.wins}W/${player.losses}L** | Fights Today: **${fightsToday}**`);
+      .setDescription(`**${player.roblox_id}** | ${getTier(player.elo)}
+${divider}
+${player.elo} ELO | ${player.wins}W/${player.losses}L | ${wr}% WR | Streak ${streak} | ${player.total_matches} Matches
+${divider}
+Updated: <t:${unix}:R>`);
 
     await interaction.reply({ embeds: [embed] });
   },

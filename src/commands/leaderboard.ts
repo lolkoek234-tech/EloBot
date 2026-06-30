@@ -31,6 +31,11 @@ function regionCode(region: string): string {
   }
 }
 
+function winRate(wins: number, losses: number): string {
+  const total = wins + losses;
+  return total > 0 ? (wins / total * 100).toFixed(1) : '0.0';
+}
+
 export async function showLeaderboard(interaction: any, filterRegion?: string): Promise<void> {
   const players = filterRegion
     ? getTopPlayersByRegion(filterRegion, 10)
@@ -41,26 +46,25 @@ export async function showLeaderboard(interaction: any, filterRegion?: string): 
     return;
   }
 
-  const now = new Date();
-  const formattedDate = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  const formattedTime = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const unix = Math.floor(Date.now() / 1000);
 
   const title = filterRegion ? `${regionLabel(filterRegion)} Leaderboard` : 'Global Leaderboard';
   const scope = filterRegion ? `Elo Bot | ${regionLabel(filterRegion)} | Top 10` : 'Elo Bot | All Regions | Top 10';
 
   const lines = players.map((p, i) => {
     const streak = getWinStreak(p.discord_id);
+    const wr = winRate(p.wins, p.losses);
     if (filterRegion || p.region) {
       const flag = regionFlag(p.region || filterRegion || '');
       const code = regionCode(p.region || filterRegion || '');
-      return `**#${i + 1}** ${flag} **${p.roblox_id}** | ${code}\nELO: **${p.elo}** | ${p.wins}W/${p.losses}L | Streak: ${streak}`;
+      return `**#${i + 1}** ${flag} **${p.roblox_id}** | ${code}\n${p.elo} ELO | ${p.wins}W/${p.losses}L | ${wr}% WR | Streak ${streak} | ${p.total_matches} Matches`;
     }
-    return `**#${i + 1}** **${p.roblox_id}**\nELO: **${p.elo}** | ${p.wins}W/${p.losses}L | Streak: ${streak}`;
+    return `**#${i + 1}** **${p.roblox_id}**\n${p.elo} ELO | ${p.wins}W/${p.losses}L | ${wr}% WR | Streak ${streak} | ${p.total_matches} Matches`;
   });
 
   const embed = new EmbedBuilder()
     .setColor(0x2B2D31)
-    .setDescription(`# ${title}\n${scope}\n___\n\n${lines.join('\n\n')}\n\nLast updated: ${formattedDate} at ${formattedTime}`);
+    .setDescription(`# ${title}\n${scope}\n___\n\n${lines.join('\n\n')}\n\nUpdated: <t:${unix}:R>`);
 
   await interaction.reply({ embeds: [embed], allowedMentions: { parse: [] } });
 }

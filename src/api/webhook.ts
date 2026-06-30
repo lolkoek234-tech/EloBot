@@ -1,6 +1,6 @@
 import express from 'express';
 import { Client, EmbedBuilder, TextChannel } from 'discord.js';
-import { getOrCreatePlayerByRobloxId, processMatch, getDailyStats } from '../db/queries';
+import { getOrCreatePlayerByRobloxId, processMatch, getDailyStats, getWinStreak } from '../db/queries';
 import { determineWinner } from '../elo';
 import { MatchResultInput, Region, getTier } from '../types';
 
@@ -87,8 +87,12 @@ export function startApi(client: Client, port: number): void {
           const p1Daily = getDailyStats(p1.discord_id, today);
           const p2Daily = getDailyStats(p2.discord_id, today);
 
-          const p1Record = `${p1.wins}W/${p1.losses}L`;
-          const p2Record = `${p2.wins}W/${p2.losses}L`;
+          const p1Total = p1.wins + p1.losses;
+          const p2Total = p2.wins + p2.losses;
+          const p1Wr = p1Total > 0 ? (p1.wins / p1Total * 100).toFixed(1) : '0.0';
+          const p2Wr = p2Total > 0 ? (p2.wins / p2Total * 100).toFixed(1) : '0.0';
+          const p1Streak = getWinStreak(p1.discord_id);
+          const p2Streak = getWinStreak(p2.discord_id);
 
           const p1Label = winner === 'player1' ? 'WINNER' : winner === 'draw' ? 'DRAW' : 'LOSER';
           const p2Label = winner === 'player2' ? 'WINNER' : winner === 'draw' ? 'DRAW' : 'LOSER';
@@ -101,13 +105,13 @@ export function startApi(client: Client, port: number): void {
           const embed = new EmbedBuilder()
             .setColor(0x2B2D31)
             .setDescription(`${flag} **${p1.roblox_id}** ${p1Label}
--# ELO: **${result.newEloA}** | ${p1Tier} | Record: ${p1Record} | Fights Today: **${p1Daily?.fight_count || 1}** | Scoreboard: **${score1}-${score2}**
+-# ${result.newEloA} ELO | ${p1Tier} | ${p1.wins}W/${p1.losses}L | ${p1Wr}% WR | Streak ${p1Streak} | Fights Today: ${p1Daily?.fight_count || 1} | Scoreboard: ${score1}-${score2}
 -# Opponent: ${p2.roblox_id}
 
 \u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}
 
 ${flag} **${p2.roblox_id}** ${p2Label}
--# ELO: **${result.newEloB}** | ${p2Tier} | Record: ${p2Record} | Fights Today: **${p2Daily?.fight_count || 1}** | Scoreboard: **${score2}-${score1}**
+-# ${result.newEloB} ELO | ${p2Tier} | ${p2.wins}W/${p2.losses}L | ${p2Wr}% WR | Streak ${p2Streak} | Fights Today: ${p2Daily?.fight_count || 1} | Scoreboard: ${score2}-${score1}
 -# Opponent: ${p1.roblox_id}`);
 
           await channel.send({ embeds: [embed], allowedMentions: { parse: [] } });
