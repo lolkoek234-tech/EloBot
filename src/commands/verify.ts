@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, MessageFlags } from 'discord.js';
 import { getPlayerByDiscordId } from '../db/queries';
 
 export const verifyCommand = {
@@ -8,12 +8,14 @@ export const verifyCommand = {
   async execute(interaction: any) {
     const player = getPlayerByDiscordId(interaction.user.id);
 
-    const embed = new EmbedBuilder()
-      .setColor(0x2B2D31)
-      .setDescription(player
-        ? `Linked to **${player.roblox_id}**`
-        : 'Not linked. Use /link to connect your Roblox account.');
+    const container = new ContainerBuilder()
+      .setAccentColor(0x2B2D31)
+      .addTextDisplayComponents(td => td.setContent(
+        player
+          ? `Linked to **${player.roblox_id}**`
+          : 'Not linked. Use /link to connect your Roblox account.'
+      ));
 
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2, ephemeral: true });
   },
 };

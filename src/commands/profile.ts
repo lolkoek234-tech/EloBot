@@ -1,8 +1,6 @@
-import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { getPlayerByRobloxId, getDailyStats, getWinStreak } from '../db/queries';
+import { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
+import { getPlayerByRobloxId, getWinStreak } from '../db/queries';
 import { getTier } from '../types';
-
-const divider = '-# ' + '─'.repeat(40);
 
 export const profileCommand = {
   data: new SlashCommandBuilder()
@@ -27,21 +25,17 @@ export const profileCommand = {
     const wr = total > 0 ? (player.wins / total * 100).toFixed(1) : '0.0';
     const unix = Math.floor(Date.now() / 1000);
 
-    const embed = new EmbedBuilder()
-      .setColor(0x2B2D31)
-      .setDescription(`**${player.roblox_id}** | ${getTier(player.elo)}
-${divider}
-${player.elo} ELO | ${player.wins}W/${player.losses}L | ${wr}% WR | Streak ${streak} | ${player.total_matches} Matches
-${divider}
-Updated: <t:${unix}:R>`);
+    const container = new ContainerBuilder()
+      .setAccentColor(0x2B2D31)
+      .addTextDisplayComponents(td => td.setContent(`**${player.roblox_id}** | ${getTier(player.elo)}`))
+      .addSeparatorComponents(sep => sep.setDivider(true))
+      .addTextDisplayComponents(td => td.setContent(`${player.elo} ELO | ${player.wins}W/${player.losses}L | ${wr}% WR | Streak ${streak} | ${player.total_matches} Matches`))
+      .addSeparatorComponents(sep => sep.setDivider(true))
+      .addTextDisplayComponents(td => td.setContent(`Updated: <t:${unix}:R>`))
+      .addActionRowComponents(row => row.setComponents(
+        new ButtonBuilder().setCustomId('mystats').setLabel('My Stats').setStyle(ButtonStyle.Secondary)
+      ));
 
-    const button = new ButtonBuilder()
-      .setCustomId('mystats')
-      .setLabel('My Stats')
-      .setStyle(ButtonStyle.Secondary);
-
-    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
-
-    await interaction.reply({ embeds: [embed], components: [row] });
+    await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
   },
 };

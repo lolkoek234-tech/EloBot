@@ -1,4 +1,4 @@
-import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { getTopPlayers, getTopPlayersByRegion, getWinStreak } from '../db/queries';
 
 function regionFlag(region: string): string {
@@ -36,9 +36,7 @@ function winRate(wins: number, losses: number): string {
   return total > 0 ? (wins / total * 100).toFixed(1) : '0.0';
 }
 
-const divider = '-# ' + '─'.repeat(40);
-
-export function buildLeaderboardData(filterRegion?: string): { embed: EmbedBuilder; components: ActionRowBuilder<ButtonBuilder>[] } | null {
+export function buildLeaderboardData(filterRegion?: string): { components: any[]; flags: number } | null {
   const players = filterRegion
     ? getTopPlayersByRegion(filterRegion, 10)
     : getTopPlayers(10);
@@ -59,18 +57,17 @@ export function buildLeaderboardData(filterRegion?: string): { embed: EmbedBuild
     return `**#${i + 1}**${regionPart}\n${p.elo} ELO | ${p.wins}W/${p.losses}L | ${wr}% WR | Streak ${streak} | ${p.total_matches} Matches`;
   });
 
-  const embed = new EmbedBuilder()
-    .setColor(0x2B2D31)
-    .setDescription(`# ${title}\n${scope}\n${divider}\n\n${lines.join('\n\n')}\n\nUpdated: <t:${unix}:R>`);
+  const container = new ContainerBuilder()
+    .setAccentColor(0x2B2D31)
+    .addTextDisplayComponents(td => td.setContent(`# ${title}\n${scope}`))
+    .addSeparatorComponents(sep => sep.setDivider(true))
+    .addTextDisplayComponents(td => td.setContent(lines.join('\n\n')))
+    .addTextDisplayComponents(td => td.setContent(`Updated: <t:${unix}:R>`))
+    .addActionRowComponents(row => row.setComponents(
+      new ButtonBuilder().setCustomId('mystats').setLabel('My Stats').setStyle(ButtonStyle.Secondary)
+    ));
 
-  const button = new ButtonBuilder()
-    .setCustomId('mystats')
-    .setLabel('My Stats')
-    .setStyle(ButtonStyle.Secondary);
-
-  const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
-
-  return { embed, components: [row] };
+  return { components: [container], flags: MessageFlags.IsComponentsV2 };
 }
 
 export async function showLeaderboard(interaction: any, filterRegion?: string): Promise<void> {
@@ -81,16 +78,13 @@ export async function showLeaderboard(interaction: any, filterRegion?: string): 
   }
 
   const reply = await interaction.reply({
-    embeds: [data.embed],
     components: data.components,
-    allowedMentions: { parse: [] },
+    flags: data.flags,
     fetchReply: true,
   });
 
   trackMessage(reply.channelId, reply.id, filterRegion);
 }
-
-// auto-refresh tracking
 
 interface TrackedMessage {
   channelId: string;

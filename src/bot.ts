@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, REST, Routes, EmbedBuilder } from 'discord.js';
+import { Client, GatewayIntentBits, REST, Routes, ContainerBuilder, TextDisplayBuilder, MessageFlags } from 'discord.js';
 import { linkCommand } from './commands/link';
 import { profileCommand } from './commands/profile';
 import { leaderboardCommand } from './commands/leaderboard_cmd';
@@ -86,22 +86,16 @@ export async function startBot(token: string, clientId: string, guildId: string)
         const total = player.wins + player.losses;
         const wr = total > 0 ? (player.wins / total * 100).toFixed(1) : '0.0';
         const status = daily?.fight_count && daily.fight_count > 0 ? 'Active' : 'Idle';
-        const divider = '-# ' + '─'.repeat(40);
 
-        const embed = new EmbedBuilder()
-          .setColor(0x2B2D31)
-          .setDescription(`Personal Stats\n<@${interaction.user.id}>
-${divider}
-ELO · ${player.elo}
-Global Rank · #${rank}
-Record · ${player.wins}W / ${player.losses}L
-Win Rate · ${wr}%
-Current Streak · ${streak}
-Highest Streak · ${highestStreak}
-Matches Played · ${player.total_matches}
-Status · ${status}`);
+        const container = new ContainerBuilder()
+          .setAccentColor(0x2B2D31)
+          .addTextDisplayComponents(td => td.setContent(`Personal Stats\n<@${interaction.user.id}>`))
+          .addSeparatorComponents(sep => sep.setDivider(true))
+          .addTextDisplayComponents(td => td.setContent(
+            `ELO · ${player.elo}\nGlobal Rank · #${rank}\nRecord · ${player.wins}W / ${player.losses}L\nWin Rate · ${wr}%\nCurrent Streak · ${streak}\nHighest Streak · ${highestStreak}\nMatches Played · ${player.total_matches}\nStatus · ${status}`
+          ));
 
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2, ephemeral: true });
       } catch (error) {
         console.error('My Stats button error:', error);
         await interaction.reply({ content: 'An error occurred.', ephemeral: true });
@@ -123,7 +117,7 @@ Status · ${status}`);
         if (!channel?.isTextBased()) continue;
         const message = await channel.messages.fetch(msg.messageId);
         if (message) {
-          await message.edit({ embeds: [data.embed], components: data.components });
+          await message.edit({ components: data.components, flags: data.flags });
         }
       } catch {
         // message deleted or channel gone, skip

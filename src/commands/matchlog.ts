@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { getRecentMatches, getPlayerByRobloxId } from '../db/queries';
 
 export const matchlogCommand = {
@@ -36,17 +36,13 @@ export const matchlogCommand = {
       return `**#${i + 1}** **${result}** ${myScore}-${oppScore}\n-# ${sign}${eloChange} ELO`;
     });
 
-    const embed = new EmbedBuilder()
-      .setColor(0x2B2D31)
-      .setDescription(lines.join('\n\n'));
+    const container = new ContainerBuilder()
+      .setAccentColor(0x2B2D31)
+      .addTextDisplayComponents(td => td.setContent(lines.join('\n\n')))
+      .addActionRowComponents(row => row.setComponents(
+        new ButtonBuilder().setCustomId('mystats').setLabel('My Stats').setStyle(ButtonStyle.Secondary)
+      ));
 
-    const button = new ButtonBuilder()
-      .setCustomId('mystats')
-      .setLabel('My Stats')
-      .setStyle(ButtonStyle.Secondary);
-
-    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
-
-    await interaction.reply({ embeds: [embed], components: [row] });
+    await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2 });
   },
 };

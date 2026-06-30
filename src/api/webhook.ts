@@ -1,5 +1,5 @@
 import express from 'express';
-import { Client, EmbedBuilder, TextChannel } from 'discord.js';
+import { Client, TextChannel, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MessageFlags } from 'discord.js';
 import { getOrCreatePlayerByRobloxId, processMatch, getDailyStats, getWinStreak, getTopPlayers, getTopPlayersByRegion, consumeOAuthState, linkPlayer, getPlayerByRobloxId, upgradePlayerDiscordId, getPlayerByDiscordId } from '../db/queries';
 import { determineWinner } from '../elo';
 import { MatchResultInput, Region, getTier } from '../types';
@@ -123,19 +123,17 @@ export function startApi(client: Client, port: number): void {
 
           const flag = regionFlag(region);
 
-          const embed = new EmbedBuilder()
-            .setColor(0x2B2D31)
-            .setDescription(`${flag} **${p1.roblox_id}** ${p1Label}
--# ${result.newEloA} ELO | ${p1Tier} | ${p1.wins}W/${p1.losses}L | ${p1Wr}% WR | Streak ${p1Streak} | Fights Today: ${p1Daily?.fight_count || 1} | Scoreboard: ${score1}-${score2}
--# Opponent: ${p2.roblox_id}
+          const container = new ContainerBuilder()
+            .setAccentColor(0x2B2D31)
+            .addTextDisplayComponents(td => td.setContent(
+              `${flag} **${p1.roblox_id}** ${p1Label}\n${result.newEloA} ELO | ${p1Tier} | ${p1.wins}W/${p1.losses}L | ${p1Wr}% WR | Streak ${p1Streak} | Fights Today: ${p1Daily?.fight_count || 1} | Scoreboard: ${score1}-${score2}\n-# Opponent: ${p2.roblox_id}`
+            ))
+            .addSeparatorComponents(sep => sep.setDivider(true))
+            .addTextDisplayComponents(td => td.setContent(
+              `${flag} **${p2.roblox_id}** ${p2Label}\n${result.newEloB} ELO | ${p2Tier} | ${p2.wins}W/${p2.losses}L | ${p2Wr}% WR | Streak ${p2Streak} | Fights Today: ${p2Daily?.fight_count || 1} | Scoreboard: ${score2}-${score1}\n-# Opponent: ${p1.roblox_id}`
+            ));
 
--# ────────────────────────────────────────
- 
-${flag} **${p2.roblox_id}** ${p2Label}
--# ${result.newEloB} ELO | ${p2Tier} | ${p2.wins}W/${p2.losses}L | ${p2Wr}% WR | Streak ${p2Streak} | Fights Today: ${p2Daily?.fight_count || 1} | Scoreboard: ${score2}-${score1}
--# Opponent: ${p1.roblox_id}`);
-
-          await channel.send({ embeds: [embed], allowedMentions: { parse: [] } });
+          await channel.send({ components: [container], flags: MessageFlags.IsComponentsV2, allowedMentions: { parse: [] } });
         }
       }
 
@@ -264,15 +262,14 @@ ${flag} **${p2.roblox_id}** ${p2Label}
 
       try {
         const user = await client.users.fetch(discordId);
-        const dmEmbed = new EmbedBuilder()
-          .setColor(0x2B2D31)
-          .setDescription(`# You're Verified!
--# ────────────────────────────────────────
-
-Your Discord has been linked to **${roblox_id}**.
-
-You can go back to Discord now.`);
-        await user.send({ embeds: [dmEmbed] }).catch(() => {});
+        const dmContainer = new ContainerBuilder()
+          .setAccentColor(0x2B2D31)
+          .addTextDisplayComponents(td => td.setContent(`# You're Verified!`))
+          .addSeparatorComponents(sep => sep.setDivider(true))
+          .addTextDisplayComponents(td => td.setContent(
+            `Your Discord has been linked to **${roblox_id}**.\n\nYou can go back to Discord now.`
+          ));
+        await user.send({ components: [dmContainer], flags: MessageFlags.IsComponentsV2 }).catch(() => {});
       } catch {
         // DM fails if user has DMs closed, that's fine
       }

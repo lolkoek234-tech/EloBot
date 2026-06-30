@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { SlashCommandBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { createOAuthState } from '../db/queries';
 import crypto from 'crypto';
 
@@ -25,22 +25,16 @@ export const linkCommand = {
 
     const url = buildAuthorizeUrl(state);
 
-    const embed = new EmbedBuilder()
-      .setColor(0x2B2D31)
-      .setDescription(`# Link Your Account
--# ────────────────────────────────────────
+    const container = new ContainerBuilder()
+      .setAccentColor(0x2B2D31)
+      .addTextDisplayComponents(td => td.setContent(`# Link Your Account`))
+      .addSeparatorComponents(sep => sep.setDivider(true))
+      .addTextDisplayComponents(td => td.setContent('Roblox will ask you to confirm — click the button below and hit **Authorize**.'))
+      .addTextDisplayComponents(td => td.setContent("You'll get a DM here when you're verified."))
+      .addActionRowComponents(row => row.setComponents(
+        new ButtonBuilder().setLabel('Verify with Roblox').setURL(url).setStyle(ButtonStyle.Link)
+      ));
 
-Roblox will ask you to confirm — just click the button below and hit **Authorize**.
-
-You'll get a DM here when you're verified.`);
-
-    const button = new ButtonBuilder()
-      .setLabel('Verify with Roblox')
-      .setURL(url)
-      .setStyle(ButtonStyle.Link);
-
-    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(button);
-
-    await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+    await interaction.reply({ components: [container], flags: MessageFlags.IsComponentsV2, ephemeral: true });
   },
 };
