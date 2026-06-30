@@ -1,6 +1,6 @@
 import express from 'express';
 import { Client, TextChannel, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MessageFlags } from 'discord.js';
-import { getOrCreatePlayerByRobloxId, processMatch, getDailyStats, getWinStreak, getTopPlayers, getTopPlayersByRegion, consumeOAuthState, linkPlayer, getPlayerByRobloxId, upgradePlayerDiscordId, getPlayerByDiscordId } from '../db/queries';
+import { getOrCreatePlayerByRobloxId, processMatch, getDailyStats, getWinStreak, getTopPlayers, getTopPlayersByRegion, consumeOAuthState, linkPlayer, getPlayerByRobloxId, upgradePlayerDiscordId } from '../db/queries';
 import { normalizeId } from '../db/schema';
 import { determineWinner } from '../elo';
 import { MatchResultInput, Region, getTier } from '../types';
@@ -222,9 +222,6 @@ export function startApi(client: Client, port: number): void {
         return;
       }
 
-      const oldPlayer = getPlayerByDiscordId(discordId);
-      const oldRobloxId = oldPlayer?.roblox_id;
-
       if (existingByRoblox && existingByRoblox.discord_id.startsWith('rbx_')) {
         upgradePlayerDiscordId(existingByRoblox.discord_id, discordId, roblox_id);
       } else {
@@ -241,25 +238,6 @@ export function startApi(client: Client, port: number): void {
           try {
             const member = await guild.members.fetch(discordId);
             isOwner = member.id === guild.ownerId;
-
-            // remove old role if re-linking
-            if (oldRobloxId && oldRobloxId !== roblox_id) {
-              const oldRole = guild.roles.cache.find(r => r.name === oldRobloxId);
-              if (oldRole) {
-                await member.roles.remove(oldRole).catch(() => {});
-                if (oldRole.members.size === 0) await oldRole.delete().catch(() => {});
-              }
-            }
-
-            // remove auto-created roles
-            for (const role of member.roles.cache.filter(r => r.name.startsWith('rbx_')).values()) {
-              await member.roles.remove(role).catch(() => {});
-            }
-
-            // create/assign role
-            let role = guild.roles.cache.find(r => r.name === roblox_id);
-            if (!role) role = await guild.roles.create({ name: roblox_id, mentionable: false });
-            await member.roles.add(role);
 
             // set nickname (skipped for server owner — Discord restriction)
             if (isOwner) {
